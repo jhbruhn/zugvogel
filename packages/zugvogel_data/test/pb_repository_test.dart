@@ -1,0 +1,422 @@
+import 'package:http/http.dart' as http;
+import 'package:mocktail/mocktail.dart';
+import 'package:pocketbase/pocketbase.dart';
+import 'package:test/test.dart';
+import 'package:zugvogel_data/zugvogel_data.dart';
+
+import 'support/thing.dart';
+
+class _MockPb extends Mock implements PocketBase {}
+
+class _MockService extends Mock implements RecordService {}
+
+/// Minimal concrete repo to exercise the generic base.
+class _ThingsRepo extends PbRepository<Thing> {
+  _ThingsRepo(
+    PocketBase pb, {
+    super.networkTimeout = const Duration(seconds: 5),
+  }) : super(pb: pb, collection: 'things', fromRecord: Thing.fromRecord);
+}
+
+/// Repo whose mapper always throws, standing in for a malformed record that a
+/// fromRecord cannot digest.
+class _ThrowingRepo extends PbRepository<Thing> {
+  _ThrowingRepo(PocketBase pb)
+    : super(
+        pb: pb,
+        collection: 'things',
+        fromRecord: (_) => throw const FormatException('bad record'),
+      );
+}
+
+/// A view-backed repo: read-only by type, so a write is a compile error.
+class _ViewRepo extends PbReadOnlyRepository<Thing> {
+  _ViewRepo(PocketBase pb)
+    : super(
+        pb: pb,
+        collection: 'thing_summaries',
+        fromRecord: Thing.fromRecord,
+      );
+}
+
+void main() {
+  late _MockPb pb;
+  late _MockService service;
+  late _ThingsRepo repo;
+
+  setUp(() {
+    pb = _MockPb();
+    service = _MockService();
+    when(() => pb.collection('things')).thenReturn(service);
+    when(
+      () => pb.filter(any(), any()),
+    ).thenAnswer((i) => i.positionalArguments.first as String);
+    repo = _ThingsRepo(pb);
+  });
+
+  RecordModel rec(String id, String name) => thingRecord(id, name);
+
+  test('list maps every record through fromRecord', () async {
+    when(
+      () => service.getList(
+        page: any(named: 'page'),
+        perPage: any(named: 'perPage'),
+        skipTotal: any(named: 'skipTotal'),
+        filter: any(named: 'filter'),
+        sort: any(named: 'sort'),
+        expand: any(named: 'expand'),
+      ),
+    ).thenAnswer(
+      (_) async => ResultList(items: [rec('a1', 'Lotte'), rec('a2', 'Max')]),
+    );
+
+    final things = await repo.list(sort: 'name');
+
+    expect(things.map((a) => a.name), ['Lotte', 'Max']);
+  });
+
+  test('list keeps paging until a page comes back short', () async {
+    // Page 1 is full (500), so a second request must follow; page 2 is short,
+    // so paging stops there.
+    when(
+      () => service.getList(
+        page: any(named: 'page'),
+        perPage: any(named: 'perPage'),
+        skipTotal: any(named: 'skipTotal'),
+        filter: any(named: 'filter'),
+        sort: any(named: 'sort'),
+        expand: any(named: 'expand'),
+      ),
+    ).thenAnswer((i) async {
+      final page = i.namedArguments[#page]! as int;
+      return ResultList(
+        items: page == 1
+            ? [for (var n = 0; n < 500; n++) rec('a$n', 'Thing $n')]
+            : [rec('a500', 'Last')],
+      );
+    });
+
+    final things = await repo.list();
+
+    expect(things, hasLength(501));
+    expect(things.last.name, 'Last');
+    verify(
+      () => service.getList(
+        page: any(named: 'page'),
+        perPage: 500,
+        skipTotal: true,
+        filter: any(named: 'filter'),
+        sort: any(named: 'sort'),
+        expand: any(named: 'expand'),
+      ),
+    ).called(2);
+  });
+
+  test('getOne maps the record', () async {
+    when(
+      () => service.getOne('a1', expand: any(named: 'expand')),
+    ).thenAnswer((_) async => rec('a1', 'Lotte'));
+
+    final a = await repo.getOne('a1');
+
+    expect(a.id, 'a1');
+    expect(a.name, 'Lotte');
+  });
+
+  test('create returns the mapped created record', () async {
+    when(
+      () => service.create(body: any(named: 'body')),
+    ).thenAnswer((_) async => rec('a3', 'Pip'));
+
+    final a = await repo.create({'name': 'Pip'});
+
+    expect(a.id, 'a3');
+  });
+
+  test('createWithFiles forwards the multipart files to the service', () async {
+    when(
+      () => service.create(
+        body: any(named: 'body'),
+        files: any(named: 'files'),
+      ),
+    ).thenAnswer((_) async => rec('a4', 'Snap'));
+
+    final file = http.MultipartFile.fromBytes(
+      'attachments',
+      [1, 2, 3],
+      filename: 'photo.jpg',
+    );
+    final a = await repo.createWithFiles({'name': 'Snap'}, [file]);
+
+    expect(a.id, 'a4');
+    final captured =
+        verify(
+              () => service.create(
+                body: any(named: 'body'),
+                files: captureAny(named: 'files'),
+              ),
+            ).captured.single
+            as List<http.MultipartFile>;
+    expect(captured.single.field, 'attachments');
+    expect(captured.single.filename, 'photo.jpg');
+  });
+
+  test('updateWithFiles forwards body and files to the service', () async {
+    when(
+      () => service.update(
+        any(),
+        body: any(named: 'body'),
+        files: any(named: 'files'),
+      ),
+    ).thenAnswer((_) async => rec('a5', 'Edited'));
+
+    final file = http.MultipartFile.fromBytes(
+      'attachments',
+      [9, 8, 7],
+      filename: 'new.jpg',
+    );
+    final a = await repo.updateWithFiles(
+      'a5',
+      {
+        'attachments': ['kept.jpg'],
+      },
+      [file],
+    );
+
+    expect(a.id, 'a5');
+    final captured =
+        verify(
+              () => service.update(
+                'a5',
+                body: any(named: 'body'),
+                files: captureAny(named: 'files'),
+              ),
+            ).captured.single
+            as List<http.MultipartFile>;
+    expect(captured.single.filename, 'new.jpg');
+  });
+
+  test('fileUrl builds an /api/files URL with an optional thumb', () {
+    final realRepo = _ThingsRepo(PocketBase('http://localhost:8090'));
+
+    expect(
+      realRepo.fileUrl('r1', 'pic.jpg').toString(),
+      'http://localhost:8090/api/files/things/r1/pic.jpg',
+    );
+    expect(
+      realRepo.fileUrl('r1', 'pic.jpg', thumb: '100x100').toString(),
+      contains('thumb=100x100'),
+    );
+  });
+
+  test('fileUrl appends a file token for Protected fields', () {
+    final realRepo = _ThingsRepo(PocketBase('http://localhost:8090'));
+
+    expect(
+      realRepo.fileUrl('r1', 'pic.jpg', token: 'tok123').toString(),
+      contains('token=tok123'),
+    );
+    final both = realRepo
+        .fileUrl('r1', 'pic.jpg', thumb: '100x100', token: 'tok123')
+        .toString();
+    expect(both, contains('thumb=100x100'));
+    expect(both, contains('token=tok123'));
+    // Omitting the token leaves the URL token-free (public/unprotected use).
+    expect(
+      realRepo.fileUrl('r1', 'pic.jpg').toString(),
+      isNot(contains('token=')),
+    );
+  });
+
+  test('translates ClientException into RepositoryException', () async {
+    when(
+      () => service.getOne(any(), expand: any(named: 'expand')),
+    ).thenThrow(ClientException(statusCode: 404));
+
+    expect(
+      () => repo.getOne('missing'),
+      throwsA(
+        isA<RepositoryException>().having(
+          (e) => e.kind,
+          'kind',
+          RepositoryErrorKind.notFound,
+        ),
+      ),
+    );
+  });
+
+  test('firstWhere returns null on 404 instead of throwing', () async {
+    when(
+      () => service.getFirstListItem(any(), expand: any(named: 'expand')),
+    ).thenThrow(ClientException(statusCode: 404));
+
+    expect(
+      await repo.firstWhere(repo.filterExpr('name = {:n}', {'n': 'nope'})),
+      isNull,
+    );
+  });
+
+  test('firstWhere still reports a non-404 failure', () async {
+    when(
+      () => service.getFirstListItem(any(), expand: any(named: 'expand')),
+    ).thenThrow(ClientException(statusCode: 403));
+
+    expect(
+      () => repo.firstWhere(repo.filterExpr('name = {:n}', {'n': 'x'})),
+      throwsA(
+        isA<RepositoryException>().having(
+          (e) => e.kind,
+          'kind',
+          RepositoryErrorKind.unauthorized,
+        ),
+      ),
+    );
+  });
+
+  test('count reads totalItems and transfers no records', () async {
+    when(
+      () => service.getList(
+        page: any(named: 'page'),
+        perPage: any(named: 'perPage'),
+        skipTotal: any(named: 'skipTotal'),
+        filter: any(named: 'filter'),
+        fields: any(named: 'fields'),
+      ),
+    ).thenAnswer((_) async => ResultList<RecordModel>(totalItems: 42));
+
+    expect(
+      await repo.count(filter: repo.filterExpr('name = {:n}', {'n': 'Lotte'})),
+      42,
+    );
+    final call = verify(
+      () => service.getList(
+        page: 1,
+        perPage: captureAny(named: 'perPage'),
+        skipTotal: captureAny(named: 'skipTotal'),
+        filter: captureAny(named: 'filter'),
+        fields: captureAny(named: 'fields'),
+      ),
+    ).captured;
+    // One row, ids only — and skipTotal MUST be false or totalItems is 0.
+    expect(call, [1, false, 'name = {:n}', 'id']);
+  });
+
+  test('a mapper failure surfaces as RepositoryException, not raw', () async {
+    when(
+      () => service.getList(
+        page: any(named: 'page'),
+        perPage: any(named: 'perPage'),
+        skipTotal: any(named: 'skipTotal'),
+        filter: any(named: 'filter'),
+        sort: any(named: 'sort'),
+        expand: any(named: 'expand'),
+      ),
+    ).thenAnswer((_) async => ResultList(items: [rec('a1', 'Lotte')]));
+    final throwingRepo = _ThrowingRepo(pb);
+
+    expect(
+      throwingRepo.list,
+      throwsA(
+        isA<RepositoryException>().having(
+          (e) => e.cause,
+          'cause',
+          isA<FormatException>(),
+        ),
+      ),
+    );
+  });
+
+  test('a hung request times out as a network error (online-only)', () async {
+    final timeoutRepo = _ThingsRepo(
+      pb,
+      networkTimeout: const Duration(milliseconds: 50),
+    );
+    when(
+      () => service.getList(
+        page: any(named: 'page'),
+        perPage: any(named: 'perPage'),
+        skipTotal: any(named: 'skipTotal'),
+        filter: any(named: 'filter'),
+        sort: any(named: 'sort'),
+        expand: any(named: 'expand'),
+      ),
+    ).thenAnswer(
+      (_) => Future.delayed(const Duration(seconds: 5), ResultList.new),
+    );
+
+    expect(
+      () => timeoutRepo.list(sort: 'name'),
+      throwsA(
+        isA<RepositoryException>().having(
+          (e) => e.isNetwork,
+          'isNetwork',
+          true,
+        ),
+      ),
+    );
+  });
+
+  test('a hung WRITE times out as unknownOutcome — the server may still '
+      'commit it, so it must not read as "not reached, retry"', () async {
+    final timeoutRepo = _ThingsRepo(
+      pb,
+      networkTimeout: const Duration(milliseconds: 50),
+    );
+    when(() => service.create(body: any(named: 'body'))).thenAnswer(
+      (_) => Future.delayed(
+        const Duration(seconds: 5),
+        () => rec('a9', 'Late'),
+      ),
+    );
+    when(() => service.delete(any())).thenAnswer(
+      (_) => Future.delayed(const Duration(seconds: 5)),
+    );
+
+    final matcher = throwsA(
+      isA<RepositoryException>()
+          .having((e) => e.kind, 'kind', RepositoryErrorKind.unknownOutcome)
+          .having((e) => e.isNetwork, 'isNetwork', false),
+    );
+    expect(() => timeoutRepo.create({'name': 'Late'}), matcher);
+    expect(() => timeoutRepo.delete('a9'), matcher);
+  });
+
+  group('the filter surface', () {
+    test('filterExpr binds params through pb.filter, never by hand', () async {
+      repo.filterExpr('name = {:n}', {'n': "O'Brien"});
+      verify(() => pb.filter('name = {:n}', {'n': "O'Brien"})).called(1);
+    });
+
+    test('a PbFilter carries the bound expression', () {
+      final f = repo.filterExpr('name = {:n}', {'n': 'x'});
+      expect(f.expression, 'name = {:n}');
+      expect(f.toString(), 'name = {:n}');
+    });
+
+    // Not expressible, by design: the query surface takes a PbFilter and
+    // PbFilter's constructor is private, so `repo.list(filter: userInput)`
+    // does not compile. That is the whole guarantee — there is no runtime
+    // assertion to test here, and if this comment is ever obsolete it means
+    // someone added a public constructor.
+  });
+
+  group('a read-only repository', () {
+    test('exposes reads', () async {
+      final viewService = _MockService();
+      when(() => pb.collection('thing_summaries')).thenReturn(viewService);
+      when(
+        () => viewService.getOne('v1', expand: any(named: 'expand')),
+      ).thenAnswer((_) async => rec('v1', 'Summary'));
+
+      expect((await _ViewRepo(pb).getOne('v1')).name, 'Summary');
+    });
+
+    // A write against a PocketBase view is a 400 at runtime, so the type stops
+    // it at compile time instead: _ViewRepo has no create/update/delete
+    // because PbReadOnlyRepository does not declare them.
+    test('is not a Repository, so writes do not typecheck', () {
+      expect(_ViewRepo(pb), isNot(isA<Repository<Thing>>()));
+      expect(repo, isA<Repository<Thing>>());
+    });
+  });
+}
