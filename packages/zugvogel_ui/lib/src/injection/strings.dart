@@ -94,6 +94,31 @@ abstract interface class ZugvogelStrings {
   String get imageShareFailed;
 }
 
+/// Builds the strings for a context — normally by reading the app's own
+/// localizations out of it.
+typedef ZugvogelStringsResolver = ZugvogelStrings Function(BuildContext);
+
+/// How the shared widgets find their text when no [ZugvogelStringsScope] is
+/// above them. Set once, by the app's bootstrap and by its test harness.
+///
+/// A scope is the better mechanism and still wins over this. But an app of any
+/// size has widget tests that each build their own `MaterialApp`, and no seam
+/// reaches all of them: federfall has 69 such files, and none of them is about
+/// which words this library shows. Requiring a scope would mean editing every
+/// one.
+///
+/// It takes the [BuildContext] rather than a ready-made [ZugvogelStrings]
+/// precisely so it stays locale-reactive: the app's implementation reads its
+/// own localizations out of that context on every build, which registers the
+/// dependency on `Localizations` that a locale change needs. A cached instance
+/// would freeze the language at startup.
+///
+/// ```dart
+/// // in bootstrap(), and in test/flutter_test_config.dart
+/// defaultZugvogelStrings = (context) => FederfallStrings(context.l10n);
+/// ```
+ZugvogelStringsResolver? defaultZugvogelStrings;
+
 /// Hands a [ZugvogelStrings] down to the shared widgets.
 ///
 /// Place it below `Localizations` — inside `MaterialApp.builder` — so the
@@ -120,18 +145,23 @@ class ZugvogelStringsScope extends InheritedWidget {
 
   /// The strings for this subtree.
   ///
-  /// Throws rather than falling back to English placeholders: a shared widget
-  /// rendering untranslated text is a bug that ships, while a missing scope is
-  /// a bug that fails on the first frame of development.
+  /// Resolution order: a [ZugvogelStringsScope] above this context, else
+  /// [defaultZugvogelStrings]. With neither, it throws — a shared widget
+  /// rendering untranslated text is a bug that ships, while a missing binding
+  /// is a bug that fails on the first frame of development.
   static ZugvogelStrings of(BuildContext context) {
     final scope = context
         .dependOnInheritedWidgetOfExactType<ZugvogelStringsScope>();
-    assert(
-      scope != null,
-      'No ZugvogelStringsScope found. Wrap the app in one — see the class '
-      'documentation — so the shared widgets can find their text.',
+    if (scope != null) return scope.strings;
+
+    final resolver = defaultZugvogelStrings;
+    if (resolver != null) return resolver(context);
+
+    throw FlutterError(
+      'No ZugvogelStrings. Either wrap the subtree in a ZugvogelStringsScope, '
+      'or set defaultZugvogelStrings once at startup (and in '
+      'test/flutter_test_config.dart). See ZugvogelStrings.',
     );
-    return scope!.strings;
   }
 
   @override

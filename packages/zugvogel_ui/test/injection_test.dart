@@ -37,14 +37,56 @@ void main() {
       expect(find.text('actionCancel'), findsOneWidget);
     });
 
-    testWidgets('a missing scope fails loudly, in development', (
+    testWidgets('with neither a scope nor a resolver, it fails loudly', (
       tester,
     ) async {
-      // Deliberately an assertion rather than an English fallback: a shared
-      // widget rendering untranslated text is a bug that ships, while a
-      // missing scope is a bug that fails on the first frame.
+      // Deliberately a throw rather than an English fallback: a shared widget
+      // rendering untranslated text is a bug that ships, while a missing
+      // binding is a bug that fails on the first frame.
       await tester.pumpWidget(wrap(const _Probe()));
-      expect(tester.takeException(), isAssertionError);
+      expect(tester.takeException(), isFlutterError);
+    });
+
+    testWidgets('a resolver serves the trees that have no scope', (
+      tester,
+    ) async {
+      // The mechanism a widget test relies on: an app of any size has tests
+      // that each build their own MaterialApp, and none of them is about which
+      // words this library shows.
+      defaultZugvogelStrings = (_) => const TestStrings();
+      addTearDown(() => defaultZugvogelStrings = null);
+
+      await tester.pumpWidget(wrap(const _Probe()));
+      expect(find.text('actionCancel'), findsOneWidget);
+    });
+
+    testWidgets('a scope still wins over the resolver', (tester) async {
+      defaultZugvogelStrings = (_) => const TestStrings();
+      addTearDown(() => defaultZugvogelStrings = null);
+
+      await tester.pumpWidget(
+        wrap(const _Probe(), strings: const _OtherStrings()),
+      );
+      expect(find.text('anderesActionCancel'), findsOneWidget);
+    });
+
+    testWidgets('the resolver sees the context, so it can read l10n', (
+      tester,
+    ) async {
+      // Why it takes a BuildContext instead of a ready-made instance: the app's
+      // implementation reads its own localizations out of it on every build,
+      // which is what keeps a locale change reactive. A cached instance would
+      // freeze the language at startup.
+      BuildContext? seen;
+      defaultZugvogelStrings = (context) {
+        seen = context;
+        return const TestStrings();
+      };
+      addTearDown(() => defaultZugvogelStrings = null);
+
+      await tester.pumpWidget(wrap(const _Probe()));
+      expect(seen, isNotNull);
+      expect(Localizations.localeOf(seen!), isNotNull);
     });
 
     testWidgets('swapping the scope rebuilds dependents', (tester) async {
