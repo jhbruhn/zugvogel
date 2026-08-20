@@ -132,16 +132,39 @@ class PbClientConfig {
   );
 }
 
-/// The app's [PbClientConfig]. **The app must override this.**
+/// The config for a context with no `ProviderScope` override — set once, by
+/// the app's bootstrap and by its test harness.
 ///
-/// Deliberately throws rather than defaulting to something plausible: a
-/// silently-wrong service name would point every request at the wrong `/info`
-/// route and store the auth payload under the wrong key, which is far harder
+/// A `ProviderScope` override is the better mechanism and still wins over this.
+/// But an app of any size has widget tests that each build their own scope, and
+/// no seam reaches all of them: requiring the override made 173 of federfall's
+/// 1120 tests fail across 86 files, none of which had anything to do with this
+/// config. A library that can only be adopted by editing 86 test files has a
+/// design problem, not an adoption problem.
+///
+/// So: one settable default, mirroring `rootLogger` in zugvogel_core, which
+/// exists for the same reason. An app sets it in `bootstrap()` for production
+/// and in `test/flutter_test_config.dart` for the suite — the hook Flutter runs
+/// around every test in a package, so no individual test needs to know this
+/// exists.
+PbClientConfig? defaultPbClientConfig;
+
+/// The app's [PbClientConfig]. **The app must supply one**, either by
+/// overriding this provider or by setting [defaultPbClientConfig].
+///
+/// Throws when neither is done, rather than defaulting to something plausible:
+/// a silently-wrong service name points every request at the wrong `/info`
+/// route and stores the auth payload under the wrong key, which is far harder
 /// to notice than a startup failure.
 final pbClientConfigProvider = Provider<PbClientConfig>(
-  (ref) => throw UnimplementedError(
-    "pbClientConfigProvider must be overridden in the app's ProviderScope. "
-    'See PbClientConfig for what to pass.',
-  ),
+  (ref) {
+    final config = defaultPbClientConfig;
+    if (config != null) return config;
+    throw UnimplementedError(
+      'No PbClientConfig. Either override pbClientConfigProvider in the '
+      "app's ProviderScope, or set defaultPbClientConfig once at startup "
+      '(and in test/flutter_test_config.dart). See PbClientConfig.',
+    );
+  },
   name: 'pbClientConfigProvider',
 );

@@ -55,10 +55,13 @@ void main() {
   });
 
   group('pbClientConfigProvider', () {
-    test('throws until the app overrides it', () {
-      // Injection boundary 3: this package cannot read a define, so a missing
-      // override has to fail loudly at startup rather than default to
-      // something plausible and point every request at the wrong /info route.
+    tearDown(() => defaultPbClientConfig = null);
+
+    test('throws until the app supplies one', () {
+      // Injection boundary 3: this package cannot read a define, so a config
+      // that was never supplied has to fail loudly at startup rather than
+      // default to something plausible and point every request at the wrong
+      // /info route.
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
@@ -68,11 +71,39 @@ void main() {
         () => container.read(pbClientConfigProvider),
         throwsA(
           predicate<Object>(
-            (e) => e.toString().contains('must be overridden'),
-            'reports that the app must override the config',
+            (e) => e.toString().contains('No PbClientConfig'),
+            'reports that the app supplied no config',
           ),
         ),
       );
+    });
+
+    test('a settable default serves the scopes that cannot be overridden', () {
+      // The mechanism a widget test relies on: an app of any size has tests
+      // that each build their own ProviderScope, and no seam reaches all of
+      // them. Set once in test/flutter_test_config.dart, and none of them has
+      // to know this exists.
+      defaultPbClientConfig = testConfig(service: 'defaulted');
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(container.read(pbClientConfigProvider).service, 'defaulted');
+    });
+
+    test('an explicit override still wins over the default', () {
+      // The override is the better mechanism, so it has to outrank the
+      // fallback — otherwise a test could not vary the config at all.
+      defaultPbClientConfig = testConfig(service: 'defaulted');
+      final container = ProviderContainer(
+        overrides: [
+          pbClientConfigProvider.overrideWithValue(
+            testConfig(service: 'overridden'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(pbClientConfigProvider).service, 'overridden');
     });
 
     test('reads back what the app overrode', () {
