@@ -67,3 +67,22 @@ jobs:
       - name: Test zugvogel_ui
         run: flutter test
         working-directory: packages/zugvogel_ui
+
+  hooks:
+    name: hooks · unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # The pure functions in pb_hooks/zv_*.js — value normalisation, the audit
+      # diff and its redaction, caller-local time, the geocode result shape.
+      # Anything that touches a collection or a schema needs a LIVE PocketBase
+      # and belongs to the harness (eiermann-d2a.18), not here.
+      - name: Run hook unit tests
+        run: node --test
+        working-directory: backend/pocketbase/tests/unit
