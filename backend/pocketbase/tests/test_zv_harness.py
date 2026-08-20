@@ -119,6 +119,18 @@ case(
     swept2.failed == 1 and swept2.passed == 0,
 )
 
+print("\n[refusal shapes]")
+# The two shapes that make a naive read assertion pass on a public database.
+case("ok() accepts 204, which is what a DELETE answers",
+     H.ok(204) and H.ok(200) and not H.ok(404) and not H.ok(400))
+import inspect
+reads = inspect.getsource(H.reads_nothing)
+case("reads_nothing checks the ITEMS of a list, not just the status",
+     "items" in reads)
+case("...and uses the single-record path when given an id",
+     "record_id" in reads)
+
+
 print("\n[the auth rate limit]")
 # Not a live call: this pins the CONTRACT that login retries rather than
 # surfacing a 429, because a 429 hands back no token and an empty token reads as
