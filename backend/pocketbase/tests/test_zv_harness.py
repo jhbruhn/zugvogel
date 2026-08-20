@@ -119,6 +119,17 @@ case(
     swept2.failed == 1 and swept2.passed == 0,
 )
 
+print("\n[the auth rate limit]")
+# Not a live call: this pins the CONTRACT that login retries rather than
+# surfacing a 429, because a 429 hands back no token and an empty token reads as
+# anonymous — and an anonymous LIST returns 200 with zero rows, which is
+# indistinguishable from a rule that is too strict.
+import inspect
+src = inspect.getsource(H.login)
+case("login retries instead of returning a 429", "429" in src and "sleep" in src)
+case("...a bounded number of times", "attempts" in src)
+
+
 print("\n[timestamps]")
 future = H.stamp(days=2)
 past = H.stamp(days=-2)

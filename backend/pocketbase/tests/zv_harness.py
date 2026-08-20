@@ -24,6 +24,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -157,13 +158,33 @@ class H:
             self.fatal("cannot authenticate superuser", s, d)
         return d["token"]
 
-    def login(self, email, pw=None):
-        s, d = self.req(
-            "POST",
-            "/api/collections/users/auth-with-password",
-            body={"identity": email, "password": pw or self.user_pass},
-        )
-        return (s, d["token"] if s == 200 else None)
+    def login(self, email, pw=None, attempts=6):
+        """Signs in, waiting out the auth rate limit.
+
+        PocketBase's FACTORY rate limit on `*:auth` is 2 requests per 3 seconds,
+        and it is not something to turn off — it is the brute-force brake, and
+        an instance that lost it ships without one (see zv_rate_limits.js).
+        But a rule suite signs in a dozen times in a row, so without this the
+        third login returns 429 with no token, and every assertion that needed
+        that token fails for a reason having nothing to do with access rules.
+        Diagnosing that from the failures alone is genuinely hard: an empty
+        token reads as anonymous, and an anonymous LIST returns 200 with zero
+        rows, which looks exactly like a rule that is too strict.
+
+        So: back off and retry rather than special-casing the limit away.
+        """
+        for attempt in range(attempts):
+            s, d = self.req(
+                "POST",
+                "/api/collections/users/auth-with-password",
+                body={"identity": email, "password": pw or self.user_pass},
+            )
+            if s != 429:
+                return (s, d["token"] if s == 200 else None)
+            # The window is 3s; sleep just past it, growing slightly in case
+            # several suites share the instance.
+            time.sleep(1.5 * (attempt + 1))
+        return (429, None)
 
     def mk(self, token, coll, body):
         """Creates a fixture record, or gives up. A failed fixture is not an
