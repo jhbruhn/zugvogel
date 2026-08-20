@@ -27,7 +27,60 @@ is kept ignorant of both. So, inside `packages/`:
 3. **No configuration.** No `AppEnvironment` access, no compile-time defines.
    Whatever the package needs is passed in.
 
-Full write-up, with the review checklist: `eiermann-d2a.21`.
+### How each seam is actually shaped
+
+The obvious design — require the app to override a provider — was tried and
+withdrawn: making `pbClientConfigProvider` mandatory broke **173 tests across
+86 files** in federfall, none of which cared about configuration. A shared
+package that makes every existing test rewrite itself does not get adopted.
+
+So each seam is a **settable global with a throwing default**:
+
+```dart
+PbClientConfig? defaultPbClientConfig;   // set once in main()
+ZugvogelStringsResolver? defaultZugvogelStrings;
+```
+
+- An app sets both in `main()`, and in `test/flutter_test_config.dart` — the
+  only hook that reaches *every* test in a package, so no test file needs to
+  know the seam exists.
+- Reading one unset throws `UnimplementedError` with a message naming what to
+  set. Silence would give a widget with English fallbacks, and an app would
+  ship it.
+- `defaultZugvogelStrings` is a **resolver taking a `BuildContext`**, not a
+  strings object. A locale change must re-resolve; capturing the strings in a
+  `final` pins the app to whatever locale was active at startup.
+
+### The review checklist
+
+For any change under `packages/`:
+
+- [ ] No `import '…l10n…'`, no literal user-facing text. Every string comes
+      from the injected `ZugvogelStrings`, reached through
+      `ZugvogelStringsScope.of(context)`.
+- [ ] No `Colors.*` and no hex literal in a widget. Status colour comes from
+      `ZugvogelSemantics`; chart series from `categorical`/`categoricalOther`.
+- [ ] No `String.fromEnvironment`, no `bool.fromEnvironment`, no reading an
+      app's environment class. Configuration arrives as a parameter or through
+      `pbClientConfigProvider`.
+- [ ] Every `Provider`/`FutureProvider`/`StreamProvider` has a `name:`.
+      Hand-written providers do not get one for free, and without it a riverpod
+      error names no provider at all — this is the real cost of the no-codegen
+      rule and a sweep test enforces it.
+- [ ] A new `DateTime`→text conversion goes through `formatLocalDate`, not
+      `DateFormat` or a `MaterialLocalizations` formatter.
+- [ ] A new non-ASCII character in any string is covered by the bundled fonts
+      (see the font pinning test in `zugvogel_ui`).
+
+All six are also **source sweeps**, run over all four packages by
+`packages/zugvogel_ui/test/injection_boundaries_test.dart` and the date sweep
+in `zugvogel_ui/lib/src/testing/`. They are sweeps rather than per-widget tests
+because the widget that reintroduces the problem does not exist yet.
+
+**Plant a canary in any guard you add.** Write the violation, watch the guard
+fail, then delete it. One of these guards "passed" for an afternoon while
+proving nothing: the canary had not planted, because `dart format` moved the
+argument the sweep was searching for.
 
 ## Migrations cannot be shared
 
@@ -38,6 +91,54 @@ only, copied and renumbered per app: migrations.
 
 Shared hooks live in the reserved `zv_*` namespace so an app hook can never
 shadow one. See `backend/pocketbase/README.md`.
+
+### Writing a `zv_*.js` library
+
+The JSVM is neither Node nor a browser, and its one structural rule shapes every
+file here: **each hook handler runs in its own isolated context.** A `zv_*.js`
+file is a module — file-level bindings inside it are correct and normal — but
+the *app* hook that uses it must `require()` it **inside** the handler, in the
+absolute `${__hooks}` form. An app-side file-level `const` is not in scope in
+the handler and throws `ReferenceError` at request time, which PocketBase
+reports as a generic 400. `H.hook_scope_offenders()` sweeps for it, because that
+failure shape survives review, boots clean, and only breaks when called.
+
+The rest, each learned the hard way:
+
+- `record.get(key)` **throws** for an absent key. Read request bodies through
+  `e.requestInfo().body`.
+- A JSON field hands JS a `types.JSONRaw` byte array — every property access is
+  `undefined` and the caller falls silently into its default. Pass it straight
+  through to `e.json`; never read into it.
+- A computed view column falls back to type `json`, so `getString()` returns
+  `"value"` *with quotes*. Ask the collection for `field.type()`; never sniff
+  per value, because a city named `true` also parses as JSON.
+- Use `setPassword()`. `record.set("password", …)` silently does nothing.
+  `verified` is a protected system field.
+- There is **no global `onServe`**, and `onBootstrap` + `e.next()` does not
+  guarantee migrations have been applied — on a fresh data directory a
+  bootstrap hook can query collections that do not exist yet.
+- A view's `viewQuery` is parsed by PocketBase and follows neither a `--`
+  comment nor an expression spanning newlines. One line per computed column,
+  reasoning in a JS comment above it.
+- Split machinery from app vocabulary with a registry
+  (`zv_audit.js`'s `withRegistry(registry)`), so a shared library never names a
+  domain concept belonging to one app.
+
+### The Python test harness
+
+`backend/pocketbase/tests/zv_harness.py` is vendored into each app, and three of
+its helpers exist because the naive spelling passes against a broken server:
+
+- `h.login()` — the factory rate-limits `*:auth` to **2 requests per 3
+  seconds**. Over it, a login returns no token; an empty token reads as
+  *anonymous*; and an anonymous LIST returns 200 with zero rows, which is
+  indistinguishable from a working rule. It backs off on 429. Never hand-roll a
+  login.
+- `h.reads_nothing(collection, …)` — a LIST is **filtered, not refused**, so
+  `status >= 400` passes against a fully public database.
+- `h.ok(status)` — a DELETE answers **204**. `status == 200` fails against a
+  working server, which is worse than no test.
 
 ## Build & test
 
@@ -88,7 +189,16 @@ rm -rf directory
 
 Also: `apt-get -y`, `ssh -o BatchMode=yes`, `scp -o BatchMode=yes`.
 
-## Commits
+## Commits and releases
 
 Conventional commits — release-please derives the version and CHANGELOG from
 them. Commit directly on `main`; no feature branches. Push only when asked.
+
+**Never merge the release PR.** release-please keeps one standing, and it is
+useful exactly as it is: a rolling summary of what has landed. Merging it would
+cut a release, and this repo deliberately has none — both apps pin a commit
+hash, and a tag can be re-pointed while pub caches by ref, so two machines would
+resolve the same declaration onto different code.
+
+`pubspec.lock` is **not committed** (it is gitignored). A library pins nothing
+for its consumers; the apps' own lockfiles decide.
