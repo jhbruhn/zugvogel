@@ -55,72 +55,76 @@ Future<OnlineStatus> confirmStatus(
 /// change that may never come), plus a slow heartbeat (so a server that dies
 /// under a live connection is still noticed), and only emits on change.
 final StreamProvider<OnlineStatus>
-onlineStatusProvider = StreamProvider.autoDispose<OnlineStatus>((
-  ref,
-) async* {
-  // Read the synchronous dependency before any await: if this provider is
-  // disposed during the awaits below, a later `ref.watch` would throw
-  // "used after dispose".
-  final probe = ref.watch(serverProbeProvider);
-  final config = await ref.watch(serverConfigControllerProvider.future);
-  final baseUrl = config.baseUrlOrNull;
-  final connectivity = Connectivity();
+onlineStatusProvider = StreamProvider.autoDispose<OnlineStatus>(
+  (
+    ref,
+  ) async* {
+    // Read the synchronous dependency before any await: if this provider is
+    // disposed during the awaits below, a later `ref.watch` would throw
+    // "used after dispose".
+    final probe = ref.watch(serverProbeProvider);
+    final config = await ref.watch(serverConfigControllerProvider.future);
+    final baseUrl = config.baseUrlOrNull;
+    final connectivity = Connectivity();
 
-  Future<OnlineStatus> probeOnce() async {
-    final results = await connectivity.checkConnectivity();
-    final interfaceUp = results.any((r) => r != ConnectivityResult.none);
-    if (!interfaceUp) return OnlineStatus.offline;
-    if (baseUrl == null) return OnlineStatus.online;
-    final result = await probe.probe(baseUrl);
-    return result is ProbeReachable
-        ? OnlineStatus.online
-        : OnlineStatus.offline;
-  }
-
-  // De-flap: a single failed probe is tentative, so a transient blip (notably
-  // right after resume) does not latch a spurious offline banner.
-  Future<OnlineStatus> check() =>
-      confirmStatus(probeOnce, isMounted: () => ref.mounted);
-
-  var current = await check();
-  if (!ref.mounted) return;
-  yield current;
-
-  final controller = StreamController<OnlineStatus>();
-  Future<void> reevaluate() async {
-    final next = await check();
-    if (next != current) {
-      current = next;
-      controller.add(next);
+    Future<OnlineStatus> probeOnce() async {
+      final results = await connectivity.checkConnectivity();
+      final interfaceUp = results.any((r) => r != ConnectivityResult.none);
+      if (!interfaceUp) return OnlineStatus.offline;
+      if (baseUrl == null) return OnlineStatus.online;
+      final result = await probe.probe(baseUrl);
+      return result is ProbeReachable
+          ? OnlineStatus.online
+          : OnlineStatus.offline;
     }
-  }
 
-  final sub = connectivity.onConnectivityChanged.listen(
-    (_) => unawaited(reevaluate()),
-  );
-  final heartbeat = Timer.periodic(
-    const Duration(seconds: 30),
-    (_) => unawaited(reevaluate()),
-  );
-  // Returning from background may not emit an interface change, so re-probe on
-  // resume to clear a stale offline reading promptly (federfall-vcm).
-  final lifecycle = AppLifecycleListener(
-    onResume: () => unawaited(reevaluate()),
-  );
-  void teardown() {
-    unawaited(sub.cancel());
-    heartbeat.cancel();
-    lifecycle.dispose();
-    unawaited(controller.close());
-  }
+    // De-flap: a single failed probe is tentative, so a transient blip (notably
+    // right after resume) does not latch a spurious offline banner.
+    Future<OnlineStatus> check() =>
+        confirmStatus(probeOnce, isMounted: () => ref.mounted);
 
-  // Disposed during `await check()` above? Registering onDispose would throw,
-  // so tear down inline instead.
-  if (!ref.mounted) {
-    teardown();
-    return;
-  }
-  ref.onDispose(teardown);
+    var current = await check();
+    if (!ref.mounted) return;
+    yield current;
 
-  yield* controller.stream;
-});
+    final controller = StreamController<OnlineStatus>();
+    Future<void> reevaluate() async {
+      final next = await check();
+      if (next != current) {
+        current = next;
+        controller.add(next);
+      }
+    }
+
+    final sub = connectivity.onConnectivityChanged.listen(
+      (_) => unawaited(reevaluate()),
+    );
+    final heartbeat = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => unawaited(reevaluate()),
+    );
+    // Returning from background may not emit an interface change, so
+    // re-probe on resume to clear a stale offline reading promptly
+    // (federfall-vcm).
+    final lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(reevaluate()),
+    );
+    void teardown() {
+      unawaited(sub.cancel());
+      heartbeat.cancel();
+      lifecycle.dispose();
+      unawaited(controller.close());
+    }
+
+    // Disposed during `await check()` above? Registering onDispose would throw,
+    // so tear down inline instead.
+    if (!ref.mounted) {
+      teardown();
+      return;
+    }
+    ref.onDispose(teardown);
+
+    yield* controller.stream;
+  },
+  name: 'onlineStatusProvider',
+);

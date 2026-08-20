@@ -80,9 +80,12 @@ class PrefsAuthTokenStorage implements AuthTokenStorage {
 }
 
 /// Selects the right [AuthTokenStorage] for the current platform.
-final authTokenStorageProvider = Provider<AuthTokenStorage>((ref) {
-  final key = ref.watch(pbClientConfigProvider).authStorageKey;
-  return kIsWeb
-      ? PrefsAuthTokenStorage(key: key)
-      : SecureAuthTokenStorage(key: key);
-});
+final authTokenStorageProvider = Provider<AuthTokenStorage>(
+  (ref) {
+    final key = ref.watch(pbClientConfigProvider).authStorageKey;
+    return kIsWeb
+        ? PrefsAuthTokenStorage(key: key)
+        : SecureAuthTokenStorage(key: key);
+  },
+  name: 'authTokenStorageProvider',
+);

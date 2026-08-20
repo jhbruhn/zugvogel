@@ -31,6 +31,7 @@ final pbSessionProvider = FutureProvider<PbSession>(
     "pbSessionProvider must be overridden with an adapter over the app's "
     'auth repository. See PbSession.',
   ),
+  name: 'pbSessionProvider',
 );
 
 /// How often to proactively roll the session token while the app stays open.
@@ -57,48 +58,53 @@ const sessionHeartbeat = Duration(hours: 6);
 /// safe.
 ///
 /// Kept alive; an app activates it by listening from its router at startup.
-final sessionRefreshProvider = FutureProvider<void>((ref) async {
-  // Until a server is configured there is no client to refresh against — and
-  // resolving the session would force PocketBase to initialise without a URL
-  // and fault. Bail out now; this rebuilds once setup completes.
-  final config = await ref.watch(serverConfigControllerProvider.future);
-  if (config is! ServerConfigured) return;
+final sessionRefreshProvider = FutureProvider<void>(
+  (ref) async {
+    // Until a server is configured there is no client to refresh against — and
+    // resolving the session would force PocketBase to initialise without a URL
+    // and fault. Bail out now; this rebuilds once setup completes.
+    final config = await ref.watch(serverConfigControllerProvider.future);
+    if (config is! ServerConfigured) return;
 
-  final session = await ref.watch(pbSessionProvider.future);
+    final session = await ref.watch(pbSessionProvider.future);
 
-  Future<void> refresh() async {
-    try {
-      await session.refresh();
-    } on Object catch (error, stackTrace) {
-      // Offline / server down / any non-401-403 failure: leave the session
-      // untouched. refresh() itself clears the store on a genuinely dead
-      // token. Reported rather than silent so a systematically failing refresh
-      // is visible in a log.
-      reportCaughtError(error, stackTrace, context: 'Session refresh failed');
+    Future<void> refresh() async {
+      try {
+        await session.refresh();
+      } on Object catch (error, stackTrace) {
+        // Offline / server down / any non-401-403 failure: leave the session
+        // untouched. refresh() itself clears the store on a genuinely dead
+        // token. Reported rather than silent so a systematically failing
+        // refresh is visible in a log.
+        reportCaughtError(error, stackTrace, context: 'Session refresh failed');
+      }
     }
-  }
 
-  final lifecycle = AppLifecycleListener(onResume: () => unawaited(refresh()));
-  final heartbeat = Timer.periodic(
-    sessionHeartbeat,
-    (_) => unawaited(refresh()),
-  );
-  void teardown() {
-    lifecycle.dispose();
-    heartbeat.cancel();
-  }
+    final lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(refresh()),
+    );
+    final heartbeat = Timer.periodic(
+      sessionHeartbeat,
+      (_) => unawaited(refresh()),
+    );
+    void teardown() {
+      lifecycle.dispose();
+      heartbeat.cancel();
+    }
 
-  // Disposed during the await above? Registering onDispose would throw, so
-  // tear down inline instead.
-  if (!ref.mounted) {
-    teardown();
-    return;
-  }
-  ref.onDispose(teardown);
+    // Disposed during the await above? Registering onDispose would throw, so
+    // tear down inline instead.
+    if (!ref.mounted) {
+      teardown();
+      return;
+    }
+    ref.onDispose(teardown);
 
-  // Roll the window (and validate against the server) once at startup.
-  unawaited(refresh());
-});
+    // Roll the window (and validate against the server) once at startup.
+    unawaited(refresh());
+  },
+  name: 'sessionRefreshProvider',
+);
 
 /// Best-effort, fire-and-forget purge of something device-local, for sign-out
 /// and server switching.

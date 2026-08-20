@@ -171,4 +171,5 @@ class ServerProbe {
 
 final Provider<ServerProbe> serverProbeProvider = Provider.autoDispose(
   (ref) => ServerProbe(config: ref.watch(pbClientConfigProvider)),
+  name: 'serverProbeProvider',
 );

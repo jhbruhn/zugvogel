@@ -22,26 +22,29 @@ class ServerNotConfiguredException implements Exception {
 /// whose `save`/`clear` write back through [AuthTokenStorage]. The provider is
 /// keyed on [ServerConfigController], so switching servers (native) rebuilds a
 /// fresh client pointed at the new origin with a clean auth store.
-final pocketBaseProvider = FutureProvider<PocketBase>((ref) async {
-  final config = await ref.watch(serverConfigControllerProvider.future);
-  final baseUrl = switch (config) {
-    ServerConfigured(:final baseUrl) => baseUrl,
-    ServerUnconfigured() => throw const ServerNotConfiguredException(),
-  };
+final pocketBaseProvider = FutureProvider<PocketBase>(
+  (ref) async {
+    final config = await ref.watch(serverConfigControllerProvider.future);
+    final baseUrl = switch (config) {
+      ServerConfigured(:final baseUrl) => baseUrl,
+      ServerUnconfigured() => throw const ServerNotConfiguredException(),
+    };
 
-  final storage = ref.watch(authTokenStorageProvider);
-  final initial = await storage.read();
-  final ua = await ref.watch(userAgentProvider.future);
+    final storage = ref.watch(authTokenStorageProvider);
+    final initial = await storage.read();
+    final ua = await ref.watch(userAgentProvider.future);
 
-  final authStore = AsyncAuthStore(
-    save: storage.write,
-    clear: storage.delete,
-    initial: initial,
-  );
+    final authStore = AsyncAuthStore(
+      save: storage.write,
+      clear: storage.delete,
+      initial: initial,
+    );
 
-  return PocketBase(
-    baseUrl,
-    authStore: authStore,
-    httpClientFactory: () => UserAgentClient(ua),
-  );
-});
+    return PocketBase(
+      baseUrl,
+      authStore: authStore,
+      httpClientFactory: () => UserAgentClient(ua),
+    );
+  },
+  name: 'pocketBaseProvider',
+);

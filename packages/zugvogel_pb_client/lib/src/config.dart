@@ -143,4 +143,5 @@ final pbClientConfigProvider = Provider<PbClientConfig>(
     "pbClientConfigProvider must be overridden in the app's ProviderScope. "
     'See PbClientConfig for what to pass.',
   ),
+  name: 'pbClientConfigProvider',
 );

@@ -22,10 +22,14 @@ Future<String> loadAppVersion() async {
 /// The app-wide HTTP `User-Agent` string. Resolved once and cached.
 final userAgentProvider = FutureProvider<String>(
   (ref) => loadUserAgent(ref.watch(pbClientConfigProvider).userAgentName),
+  name: 'userAgentProvider',
 );
 
 /// The running build's version, for display on a profile/about screen.
-final appVersionProvider = FutureProvider<String>((ref) => loadAppVersion());
+final appVersionProvider = FutureProvider<String>(
+  (ref) => loadAppVersion(),
+  name: 'appVersionProvider',
+);
 
 /// An [http.Client] that stamps a fixed `User-Agent` on every request before
 /// delegating to its inner client.

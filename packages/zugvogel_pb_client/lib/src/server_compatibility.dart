@@ -110,10 +110,13 @@ List<int> _segments(String version) => version
 ///
 /// Kept alive alongside [serverInfoProvider]: a login screen blocks on this
 /// before offering any sign-in control.
-final serverCompatibilityProvider = FutureProvider<ServerCompatibility>((
-  ref,
-) async {
-  final version = await ref.watch(appVersionProvider.future);
-  final info = await ref.watch(serverInfoProvider.future);
-  return checkServerCompatibility(appVersion: version, info: info);
-});
+final serverCompatibilityProvider = FutureProvider<ServerCompatibility>(
+  (
+    ref,
+  ) async {
+    final version = await ref.watch(appVersionProvider.future);
+    final info = await ref.watch(serverInfoProvider.future);
+    return checkServerCompatibility(appVersion: version, info: info);
+  },
+  name: 'serverCompatibilityProvider',
+);

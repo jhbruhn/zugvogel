@@ -17,4 +17,5 @@ final mapConfigProvider = Provider<MapConfig>(
     ref.watch(serverInfoProvider).value?.map,
     fallback: ref.watch(pbClientConfigProvider).mapFallback,
   ),
+  name: 'mapConfigProvider',
 );

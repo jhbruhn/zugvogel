@@ -72,4 +72,5 @@ class ServerConfigController extends AsyncNotifier<ServerConfig> {
 final serverConfigControllerProvider =
     AsyncNotifierProvider<ServerConfigController, ServerConfig>(
       ServerConfigController.new,
+      name: 'serverConfigControllerProvider',
     );

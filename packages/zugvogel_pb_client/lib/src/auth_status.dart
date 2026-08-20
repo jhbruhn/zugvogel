@@ -31,4 +31,5 @@ class AuthStatus extends AsyncNotifier<bool> {
 
 final authStatusProvider = AsyncNotifierProvider<AuthStatus, bool>(
   AuthStatus.new,
+  name: 'authStatusProvider',
 );

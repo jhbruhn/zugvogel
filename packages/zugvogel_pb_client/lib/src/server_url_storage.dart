@@ -26,4 +26,5 @@ final serverUrlStorageProvider = Provider<ServerUrlStorage>(
   (ref) => ServerUrlStorage(
     key: ref.watch(pbClientConfigProvider).serverUrlStorageKey,
   ),
+  name: 'serverUrlStorageProvider',
 );

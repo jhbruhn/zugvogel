@@ -14,18 +14,21 @@ import 'package:zugvogel_pb_client/src/pocketbase_provider.dart';
 /// re-mints well before the server-side token expires. Append it to file URLs
 /// via `PbReadOnlyRepository.fileUrl(..., token:)`.
 final FutureProvider<String>
-fileTokenProvider = FutureProvider.autoDispose<String>((ref) async {
-  final pb = await ref.watch(pocketBaseProvider.future);
-  final token = await pb.files.getToken();
-  // The provider may have been disposed during the awaits above; touching the
-  // ref (keepAlive/onDispose) then throws, so bail with the token as-is.
-  if (!ref.mounted) return token;
-  // Cache under the ~2 min TTL, then drop so the next read mints a fresh one.
-  final link = ref.keepAlive();
-  final timer = Timer(const Duration(seconds: 90), link.close);
-  ref.onDispose(timer.cancel);
-  return token;
-});
+fileTokenProvider = FutureProvider.autoDispose<String>(
+  (ref) async {
+    final pb = await ref.watch(pocketBaseProvider.future);
+    final token = await pb.files.getToken();
+    // The provider may have been disposed during the awaits above; touching the
+    // ref (keepAlive/onDispose) then throws, so bail with the token as-is.
+    if (!ref.mounted) return token;
+    // Cache under the ~2 min TTL, then drop so the next read mints a fresh one.
+    final link = ref.keepAlive();
+    final timer = Timer(const Duration(seconds: 90), link.close);
+    ref.onDispose(timer.cancel);
+    return token;
+  },
+  name: 'fileTokenProvider',
+);
 
 /// Disk + memory cache for a PocketBase instance's **Protected** file fields.
 ///
@@ -82,6 +85,7 @@ final protectedFileCacheManagerProvider = Provider<ProtectedFileCacheManager>(
     tokenProvider: () => ref.read(fileTokenProvider.future),
     cacheKey: '${ref.watch(pbClientConfigProvider).service}ProtectedFiles',
   ),
+  name: 'protectedFileCacheManagerProvider',
 );
 
 /// Cache key for a PocketBase file URL, with any `token` query param stripped.
