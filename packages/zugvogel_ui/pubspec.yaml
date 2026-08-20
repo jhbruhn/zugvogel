@@ -19,8 +19,13 @@ dependencies:
     sdk: flutter
   flutter_riverpod: ^3.3.2
   intl: ^0.20.2
+  meta: ^1.16.0
   zugvogel_core:
     path: ../zugvogel_core
+  zugvogel_data:
+    path: ../zugvogel_data
+  zugvogel_pb_client:
+    path: ../zugvogel_pb_client
 
 dev_dependencies:
   flutter_localizations:
@@ -28,6 +33,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.5
+  # Only the tests reach for it, to build the ClientException a
+  # RepositoryException is translated from.
+  pocketbase: ^0.24.0
   very_good_analysis: ^10.3.0
 
 flutter:
