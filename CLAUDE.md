@@ -42,9 +42,6 @@ flutter pub get                                   # resolves the whole workspace
 dart format --output=none --set-exit-if-changed .
 flutter analyze                                   # whole workspace from the root
 
-# build_runner only generates for the package it runs in:
-(cd packages/zugvogel_pb_client && dart run build_runner build --delete-conflicting-outputs)
-
 # Pure Dart:
 (cd packages/zugvogel_core && dart test)
 (cd packages/zugvogel_data && dart test)
@@ -54,6 +51,24 @@ flutter analyze                                   # whole workspace from the roo
 ```
 
 Flutter 3.44.3 / Dart 3.12, in lockstep with both consuming apps.
+
+## No code generation, anywhere in this repo
+
+Both apps consume Zugvogel as a **git dependency**, and `build_runner` cannot
+run inside a fetched dependency — a consumer has no way to generate code for
+its dependencies. So nothing here may depend on codegen:
+
+- **riverpod providers are hand-written** against the non-generated API. In
+  riverpod 3 a plain `Provider(...)` is keepAlive by default, which is exactly
+  what `@Riverpod(keepAlive: true)` meant; write `Provider.autoDispose(...)`
+  for the other kind. `AsyncNotifierProvider<T, S>(T.new)` replaces
+  `@Riverpod(keepAlive: true) class X extends _$X`.
+- **no `freezed`, no `json_serializable`.** Value classes are hand-written
+  (see `GeoPoint`): a const constructor, `==`, `hashCode`, `toString`, and
+  `copyWith` only where something calls it.
+
+An app may of course still use codegen for its own domain models. This
+restriction is Zugvogel's alone.
 
 ## Non-interactive shell commands
 

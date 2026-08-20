@@ -41,13 +41,11 @@ jobs:
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed .
 
-      # build_runner only generates code for the package it runs in, so each
-      # workspace member with its own codegen needs its own step. `flutter
-      # analyze` from the repo root then analyzes the whole workspace at once.
-      - name: Generate code (zugvogel_pb_client)
-        run: dart run build_runner build --delete-conflicting-outputs
-        working-directory: packages/zugvogel_pb_client
-
+      # No codegen step, deliberately. Both apps consume this library as a git
+      # dependency and build_runner cannot run inside a fetched dependency, so
+      # nothing here generates code — riverpod providers are hand-written and
+      # GeoPoint is not freezed. `flutter analyze` from the repo root analyzes
+      # the whole workspace at once.
       - name: Analyze
         run: flutter analyze
 
