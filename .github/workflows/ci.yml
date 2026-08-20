@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Must stay in lockstep with both consuming apps (federfall, eiermann): this
+  # library is compiled by their toolchain, not its own, so a version they do
+  # not have is a break they discover and not CI.
+  FLUTTER_VERSION: "3.44.3"
+
+jobs:
+  dart:
+    name: format · analyze · test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Resolves the whole pub workspace from the repo root.
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Format the hand-written source before any generated files exist, so the
+      # check never trips over generator output.
+      - name: Verify formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      # build_runner only generates code for the package it runs in, so each
+      # workspace member with its own codegen needs its own step. `flutter
+      # analyze` from the repo root then analyzes the whole workspace at once.
+      - name: Generate code (zugvogel_pb_client)
+        run: dart run build_runner build --delete-conflicting-outputs
+        working-directory: packages/zugvogel_pb_client
+
+      - name: Analyze
+        run: flutter analyze
+
+      # Pure-Dart members run under `dart test`; the two Flutter members need
+      # `flutter test`. There is no app here to aggregate coverage into, so
+      # each package is run on its own.
+      - name: Test zugvogel_core
+        run: dart test
+        working-directory: packages/zugvogel_core
+
+      - name: Test zugvogel_data
+        run: dart test
+        working-directory: packages/zugvogel_data
+
+      - name: Test zugvogel_pb_client
+        run: flutter test
+        working-directory: packages/zugvogel_pb_client
+
+      - name: Test zugvogel_ui
+        run: flutter test
+        working-directory: packages/zugvogel_ui

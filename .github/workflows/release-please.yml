@@ -1,0 +1,28 @@
+name: Release Please
+
+# release-please watches conventional-commit history on main and maintains a
+# standing "release PR" with the next version bump + CHANGELOG. Merging that PR
+# tags vX.Y.Z and creates a GitHub Release — and that tag is what federfall and
+# eiermann pin in their pubspecs.
+#
+# There is deliberately no build or publish job here. Zugvogel is not published
+# to pub.dev and ships no app; the tag IS the artefact. The one image this repo
+# does build (zugvogel-pb-base, eiermann-d2a.19) adds its own job below when it
+# lands.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    # No Docker, no build step — just the release-please API call.
+    runs-on: ubuntu-slim
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

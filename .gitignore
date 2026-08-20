@@ -1,0 +1,57 @@
+# ─── Secrets ────────────────────────────────────────────────────────────────
+# This repo ships no app and holds no config, but these lines are defensive in
+# case a tool drops one.
+.env
+.env.*
+*.pem
+
+# ─── Dart / Flutter ─────────────────────────────────────────────────────────
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+coverage/
+doc/api/
+
+# Generated code (freezed / json_serializable / riverpod) — regenerated via
+# `dart run build_runner build`; CI does this. Not committed.
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+*.config.dart
+
+# Note: pubspec.lock is NOT committed. This repo ships libraries, not an app —
+# the consuming app's lockfile is the one that pins versions. Committing one
+# here would only ever go stale.
+pubspec.lock
+
+# ─── PocketBase ─────────────────────────────────────────────────────────────
+# Runtime DB and uploads of any throwaway instance the test harness spins up.
+backend/pocketbase/pb_data/
+
+# ─── Python (the PocketBase rule/hook harness) ──────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+
+# ─── IDE / editor / OS ──────────────────────────────────────────────────────
+.idea/
+# Ignore .vscode contents but keep shareable run/debug + recommendations.
+# Use `.vscode/*` (not `.vscode/`) so the negations below can re-include files;
+# a file under a fully-ignored directory cannot be re-included.
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/extensions.json
+**/.vscode/*
+!**/.vscode/launch.json
+!**/.vscode/settings.json
+!**/.vscode/extensions.json
+*.iml
+.DS_Store
+Thumbs.db
+*.swp
+*~

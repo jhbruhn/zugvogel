@@ -1,0 +1,19 @@
+# Zugvogel — Dart pub workspace root.
+# This is not a publishable package; it only ties the library members together
+# so they share a single dependency resolution and lockfile.
+# See https://dart.dev/tools/pub/workspaces
+#
+# Nothing in this repo is an app. Zugvogel is consumed by federfall and
+# eiermann through a pinned git ref (see README.md) — never through a path
+# dependency across repo boundaries.
+name: zugvogel_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+workspace:
+  - packages/zugvogel_core
+  - packages/zugvogel_data
+  - packages/zugvogel_pb_client
+  - packages/zugvogel_ui

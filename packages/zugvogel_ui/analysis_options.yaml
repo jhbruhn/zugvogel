@@ -1,0 +1,16 @@
+include: package:very_good_analysis/analysis_options.yaml
+
+# NOTE: riverpod_lint is enabled via the `plugins:` key in the workspace-root
+# analysis_options.yaml (../../analysis_options.yaml) — the native
+# analysis-server plugin system only allows `plugins:` at the workspace root.
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+linter:
+  rules:
+    # Off while Phase 00 moves code in from federfall, which was written under
+    # an app's lint profile and documents next to nothing. This is a library
+    # two apps consume, so it should end up ON — tracked separately.
+    public_member_api_docs: false
