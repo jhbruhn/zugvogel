@@ -8,8 +8,8 @@ hidden in a submodule.
 | Directory  | Contents |
 | ---------- | -------- |
 | `pb_hooks` | Shared hook **libraries**, all in the reserved `zv_*` namespace. None is a `*.pb.js`, so PocketBase never auto-loads one — they are reachable only through `require()`. |
-| `templates/pb_hooks` | The thin `*.pb.js` wrappers an app copies and fills its service name into. See that directory's README for why they cannot be shipped as hooks. |
-| `tests/unit` | `node --test` over the pure functions in the libraries. Fast, no PocketBase. |
+| `templates` | The `*.pb.js` wrappers and test scripts an app copies and fills its service name into. See that directory's README for why they cannot be shipped as-is. |
+| `tests` | The shared Python harness for an app's live-PocketBase suite, plus `unit/` — `node --test` over the pure functions in the libraries. See its README. |
 | `typst`    | `report_common.typ` plus the vendored Typst packages, and the `shared_strings` mechanism that keeps a PDF and its CSV from drifting. |
 | `tests`    | The rule/hook harness templates. Rule tests need a *live* PocketBase and cannot run in the Flutter suite; cron jobs are invisible to it entirely, hence the separate harness. |
 

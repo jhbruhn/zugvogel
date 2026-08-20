@@ -86,3 +86,10 @@ jobs:
       - name: Run hook unit tests
         run: node --test
         working-directory: backend/pocketbase/tests/unit
+
+      # The shared Python harness both apps' rule suites are built on. A harness
+      # that miscounts, or a sweep helper that matches the wrong thing, makes
+      # every suite built on it lie — and neither needs a PocketBase to check.
+      - name: Test the rule-suite harness
+        run: PYTHONPATH=. python3 test_zv_harness.py
+        working-directory: backend/pocketbase/tests
