@@ -29,6 +29,7 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
     required this.critical,
     required this.onCritical,
     required this.categorical,
+    required this.categoricalOther,
   });
 
   /// A serviceable default derived entirely from [scheme].
@@ -59,6 +60,7 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
       scheme.secondaryContainer,
       scheme.errorContainer,
     ],
+    categoricalOther: scheme.outline,
   );
 
   /// Resolved, healthy, done.
@@ -79,7 +81,20 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
   /// slices have to be told apart — so it is injected rather than computed at
   /// the call site. Charts index into it modulo its length and must not assume
   /// a count.
+  ///
+  /// Light and dark are separate lists, not one list flipped: this is a
+  /// [ThemeExtension], so the app registers a different instance in each
+  /// `ThemeData`, and each palette can be picked against its own surface. An
+  /// automatic lightness flip is exactly what produces a hue that passes
+  /// contrast in one theme and not the other.
   final List<Color> categorical;
+
+  /// The neutral a chart uses for a folded "other" tail.
+  ///
+  /// Deliberately not a [categorical] entry: it is not a category, it is the
+  /// absence of one, and giving it a hue of its own invites the reader to
+  /// compare it with the named slices.
+  final Color categoricalOther;
 
   /// The semantics for this subtree, or a scheme-derived default when the app
   /// registered no extension.
@@ -108,6 +123,7 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
     Color? critical,
     Color? onCritical,
     List<Color>? categorical,
+    Color? categoricalOther,
   }) => ZugvogelSemantics(
     good: good ?? this.good,
     onGood: onGood ?? this.onGood,
@@ -116,6 +132,7 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
     critical: critical ?? this.critical,
     onCritical: onCritical ?? this.onCritical,
     categorical: categorical ?? this.categorical,
+    categoricalOther: categoricalOther ?? this.categoricalOther,
   );
 
   @override
@@ -138,6 +155,11 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
             categorical[i],
         ...other.categorical.skip(categorical.length),
       ],
+      categoricalOther: Color.lerp(
+        categoricalOther,
+        other.categoricalOther,
+        t,
+      )!,
     );
   }
 
@@ -150,6 +172,7 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
       other.onWarning == onWarning &&
       other.critical == critical &&
       other.onCritical == onCritical &&
+      other.categoricalOther == categoricalOther &&
       listEquals(other.categorical, categorical);
 
   @override
@@ -161,6 +184,7 @@ class ZugvogelSemantics extends ThemeExtension<ZugvogelSemantics> {
     critical,
     onCritical,
     Object.hashAll(categorical),
+    categoricalOther,
   );
 }
 

@@ -79,6 +79,7 @@ void main() {
         critical: Color(0xFFFF0000),
         onCritical: Color(0xFFFFFFFF),
         categorical: [Color(0xFF111111), Color(0xFF222222)],
+        categoricalOther: Color(0xFF333333),
       );
       late ZugvogelSemantics seen;
       await tester.pumpWidget(
@@ -124,6 +125,7 @@ void main() {
       final scheme = ColorScheme.fromSeed(seedColor: const Color(0xFF356859));
       final s = ZugvogelSemantics.fromScheme(scheme);
       final roles = {
+        scheme.outline,
         scheme.primary,
         scheme.onPrimary,
         scheme.secondary,
@@ -144,6 +146,7 @@ void main() {
         s.onWarning,
         s.critical,
         s.onCritical,
+        s.categoricalOther,
         ...s.categorical,
       ]) {
         expect(roles, contains(color));
@@ -170,6 +173,7 @@ void main() {
         critical: Color(0xFF000000),
         onCritical: Color(0xFF000000),
         categorical: [Color(0xFF000000), Color(0xFF111111)],
+        categoricalOther: Color(0xFF000000),
       );
       const b = ZugvogelSemantics(
         good: Color(0xFFFFFFFF),
@@ -179,6 +183,7 @@ void main() {
         critical: Color(0xFFFFFFFF),
         onCritical: Color(0xFFFFFFFF),
         categorical: [Color(0xFFFFFFFF)],
+        categoricalOther: Color(0xFFFFFFFF),
       );
       expect(a.lerp(b, 0.5).categorical, hasLength(2));
       expect(b.lerp(a, 0.5).categorical, hasLength(2));
