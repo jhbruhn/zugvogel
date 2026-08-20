@@ -6,6 +6,8 @@ description: >-
   storage and connectivity are platform plugins).
 version: 0.1.0
 publish_to: none
+repository: https://github.com/jhbruhn/zugvogel
+issue_tracker: https://github.com/jhbruhn/eiermann/issues
 
 environment:
   sdk: ^3.12.0

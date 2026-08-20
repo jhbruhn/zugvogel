@@ -3,6 +3,10 @@
 Zugvogel is the shared library behind federfall and eiermann. It is not an app.
 Read `README.md` for the layout and the consumption model.
 
+Both apps pin a **commit hash**, not a tag: nothing here is released, and a
+hash is the only ref that cannot move. When you land a change both apps need,
+the follow-up is to bump that hash in each app — there is no release to cut.
+
 ## Issue tracking
 
 Work on Zugvogel is tracked in **eiermann's** beads database, not here — Phase
