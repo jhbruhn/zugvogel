@@ -51,8 +51,32 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # The bundled Roboto + Noto Sans Symbols/Symbols 2/Color Emoji faces are
-  # declared here by eiermann-d2a.13, together with the test that pins both
-  # this block and fontFamilyFallback. Web has no system fonts: an uncovered
-  # codepoint makes the engine fetch a per-glyph Noto slice, the CSP blocks it,
-  # and it retries on every layout of that text.
+  # Web has no system fonts: an uncovered codepoint makes the engine fetch a
+  # per-glyph Noto slice from fonts.gstatic.com, the app's CSP blocks it, and
+  # it retries on EVERY layout of that text (federfall-sbtx). Bundling is only
+  # half the fix — the same families must also be named in the theme's
+  # fontFamilyFallback, because the engine tests coverage against the families
+  # a TextStyle names. `font_fallbacks_test.dart` fails the build if either
+  # half goes missing.
+  #
+  # Consumers reference these as `packages/zugvogel_ui/<family>`; that prefix
+  # is how the engine resolves a package-provided family.
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+        - asset: assets/fonts/Roboto-Italic.ttf
+          style: italic
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Roboto-Bold.ttf
+          weight: 700
+    - family: Noto Sans Symbols
+      fonts:
+        - asset: assets/fonts/NotoSansSymbols-Regular.ttf
+    - family: Noto Sans Symbols 2
+      fonts:
+        - asset: assets/fonts/NotoSansSymbols2-Regular.ttf
+    - family: Noto Color Emoji
+      fonts:
+        - asset: assets/fonts/NotoColorEmoji.ttf

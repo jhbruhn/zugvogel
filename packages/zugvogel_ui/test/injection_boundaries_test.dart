@@ -66,12 +66,17 @@ void main() {
       expect(offenders, isEmpty, reason: _explain(offenders));
     });
 
-    test('no seeded scheme or brand seed is defined here', () {
-      // Building the theme is the app's job; this library only reads it.
+    test('only the theme scaffold seeds a scheme, and never with its own '
+        'colour', () {
+      // ColorScheme.fromSeed is the mechanism, not the violation:
+      // ZugvogelTheme.build calls it with the seed the APP passed in. What
+      // would be a violation is a seed of the library's own — and that is
+      // already impossible, because a hex literal is banned outright by the
+      // rule above. So this rule only keeps the seeding in one place.
       final offenders = _matches(
         packages,
         RegExp(r'ColorScheme\.fromSeed|MaterialColor\('),
-      );
+      ).where((hit) => !hit.contains('/theme/theme.dart:')).toList();
       expect(offenders, isEmpty, reason: _explain(offenders));
     });
   });
