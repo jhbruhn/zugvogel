@@ -131,6 +131,29 @@ case("...and uses the single-record path when given an id",
      "record_id" in reads)
 
 
+print("\n[hook scope sweep]")
+import os
+import tempfile
+
+with tempfile.TemporaryDirectory() as tmp:
+    with open(os.path.join(tmp, "clean.pb.js"), "w") as handle:
+        handle.write('routerAdd("GET", "/x", (e) => {\n  const cfg = {a: 1};\n});\n')
+    with open(os.path.join(tmp, "broken.pb.js"), "w") as handle:
+        handle.write('const config = () => ({a: 1});\nrouterAdd("GET", "/x", (e) => config());\n')
+    with open(os.path.join(tmp, "zv_lib.js"), "w") as handle:
+        handle.write("const helper = 1;\nmodule.exports = {helper};\n")
+    found = H.hook_scope_offenders(tmp)
+    # The canary: the exact shape that broke eiermann's geocode proxy.
+    case("a file-level const in a .pb.js is an offender",
+         any(f.startswith("broken.pb.js:1") for f in found), str(found))
+    case("...and names the binding, so the fix is obvious",
+         any("config" in f for f in found), str(found))
+    case("a const INSIDE a handler is fine — that is the fix",
+         not any(f.startswith("clean.pb.js") for f in found), str(found))
+    case("a zv_ module is exempt; file-level IS how a module works",
+         not any(f.startswith("zv_lib") for f in found), str(found))
+
+
 print("\n[the auth rate limit]")
 # Not a live call: this pins the CONTRACT that login retries rather than
 # surfacing a 429, because a 429 hands back no token and an empty token reads as
