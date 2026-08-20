@@ -16,3 +16,4 @@ library;
 
 export 'src/injection/semantics.dart';
 export 'src/injection/strings.dart';
+export 'src/widgets/date_field.dart';
