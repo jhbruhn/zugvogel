@@ -2,16 +2,26 @@ name: Release Please
 
 # release-please watches conventional-commit history on main and maintains a
 # standing "release PR" with the next version bump + CHANGELOG. Merging that PR
-# tags vX.Y.Z and creates a GitHub Release — and that tag is what federfall and
-# eiermann pin in their pubspecs.
+# tags vX.Y.Z and creates a GitHub Release.
 #
-# There is deliberately no build or publish job here. Zugvogel is not published
-# to pub.dev and ships no app; the tag IS the artefact. The one image this repo
-# does build (zugvogel-pb-base, eiermann-d2a.19) adds its own job below when it
-# lands.
+# ── Deliberately MANUAL for now ────────────────────────────────────────────
+# Nothing here is released: both apps pin a COMMIT HASH (see README.md), so a
+# version number would be decoration — and a tag that exists is a tag somebody
+# can pin by accident, which reintroduces the moved-tag problem hash-pinning
+# exists to avoid.
+#
+# The trigger is therefore `workflow_dispatch` rather than `push`, so the
+# machinery is ready without a release PR appearing on every merge. Switch the
+# commented `push` block back on the day releases start; nothing else about
+# this file needs to change.
+#
+# There is deliberately no build or publish job here either. Zugvogel is not
+# published to pub.dev and ships no app. The one image this repo does build
+# (zugvogel-pb-base, eiermann-d2a.19) adds its own job when it lands.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
 
 permissions:
   contents: write
