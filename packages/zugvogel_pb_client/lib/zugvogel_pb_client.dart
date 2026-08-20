@@ -19,6 +19,7 @@ export 'src/logging_observer.dart';
 export 'src/map_config.dart';
 export 'src/map_config_provider.dart';
 export 'src/pocketbase_provider.dart';
+export 'src/protected_files.dart';
 export 'src/realtime/collection_events.dart';
 export 'src/realtime/live_refresh.dart';
 export 'src/server_compatibility.dart';
