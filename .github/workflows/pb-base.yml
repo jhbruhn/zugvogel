@@ -1,0 +1,104 @@
+name: pb-base image
+
+# Publishes ghcr.io/jhbruhn/zugvogel-pb-base — the PocketBase runtime federfall
+# and eiermann start from.
+#
+# ── Tagging ────────────────────────────────────────────────────────────────
+#
+# The tag consumers pin is `sha-<commit>`. It names exactly one commit, nothing
+# can re-point it, and it matches how the Dart packages are consumed: a commit
+# hash, never a moving tag. `latest` is published too, for a human poking at the
+# image — never for a Dockerfile.
+#
+# The digest is printed in the summary. Pinning `@sha256:…` is stricter still and
+# a consumer may prefer it; the sha- tag is the readable middle ground and is
+# what eiermann's Dockerfile defaults to.
+#
+# ── Why only on changes to the backend ─────────────────────────────────────
+#
+# The image contains no Dart. Rebuilding it for a change to zugvogel_ui would
+# produce a new digest with identical contents, and then two apps disagree about
+# which base they are on for no reason at all.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'backend/pocketbase/pb_hooks/zv_*.js'
+      - 'backend/pocketbase/typst/**'
+      - 'backend/pocketbase/entrypoint.sh'
+      - '.github/workflows/pb-base.yml'
+  # Manual, for the first publish and for re-cutting an image after a base-alpine
+  # advisory without a source change.
+  workflow_dispatch:
+
+concurrency:
+  group: pb-base-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # The shared hooks' own node tests, before anything is published. An image
+      # is harder to un-publish than a commit is to fix.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test the shared hooks
+        run: node backend/pocketbase/tests/unit/zv_libs_test.js
+
+      - name: Check the entrypoint is a valid shell script
+        run: sh -n backend/pocketbase/entrypoint.sh
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/zugvogel-pb-base
+          tags: |
+            type=sha,prefix=sha-,format=long
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          # arm64 as well: a self-hoster on a Pi or an Apple-silicon dev machine
+          # is a real case, and the PocketBase fetch already handles both.
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # What a consumer needs in order to pin this build, without digging through
+      # the log.
+      - name: Summary
+        run: |
+          {
+            echo "## zugvogel-pb-base published"
+            echo
+            echo '```dockerfile'
+            echo "ARG ZUGVOGEL_PB_BASE=ghcr.io/${{ github.repository_owner }}/zugvogel-pb-base:sha-${{ github.sha }}"
+            echo '```'
+            echo
+            echo "Digest: \`${{ steps.build.outputs.digest }}\`"
+            echo
+            echo "Bump it in eiermann's Dockerfile, and in federfall's once that migrates."
+          } >> "$GITHUB_STEP_SUMMARY"
