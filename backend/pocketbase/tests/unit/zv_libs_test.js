@@ -72,6 +72,33 @@ test("positiveNumber refuses zero, because a zero window means 'now'", () => {
   );
 });
 
+test("positiveNumberList rejects a broken ladder WHOLE", () => {
+  const FALLBACK = [7, 14, 28];
+  const ok = (v) => org.positiveNumberList({ steps: v }, "steps", FALLBACK);
+
+  assert.deepEqual(ok([7, 14, 28]), [7, 14, 28]);
+  assert.deepEqual(ok(["7", "14"]), [7, 14], "strings from JSON are numbers");
+  assert.deepEqual(ok([5]), [5], "a one-rung ladder is legal — no stretch");
+
+  // Each of these fails SILENTLY without the check, and lands far from here.
+  assert.deepEqual(ok([]), FALLBACK, "an empty ladder is not a ladder");
+  assert.deepEqual(ok(7), FALLBACK, "a bare number is not a ladder");
+  assert.deepEqual(ok("7,14"), FALLBACK, "nor is a string");
+  assert.deepEqual(ok([7, "x", 28]), FALLBACK, "one bad rung, whole fallback");
+  assert.deepEqual(ok([7, 0, 28]), FALLBACK, "zero days is 'due immediately'");
+  assert.deepEqual(ok([7, -14]), FALLBACK);
+  // The inverted ladder is the nasty one: nothing errors, but the nest that has
+  // been empty longest gets checked MOST often.
+  assert.deepEqual(ok([28, 14, 7]), FALLBACK, "descending is an inverted rhythm");
+  assert.deepEqual(ok([7, 28, 14]), FALLBACK, "and so is a dip in the middle");
+  assert.deepEqual(ok([7, 7, 14]), [7, 7, 14], "a flat rung is not a dip");
+
+  assert.deepEqual(
+    org.positiveNumberList({}, "steps", FALLBACK), FALLBACK);
+  assert.deepEqual(
+    org.positiveNumberList(null, "steps", FALLBACK), FALLBACK);
+});
+
 test("flag is true only on an explicit opt-in", () => {
   assert.equal(org.flag({ x: true }, "x"), true);
   assert.equal(org.flag({ x: "true" }, "x"), false);
