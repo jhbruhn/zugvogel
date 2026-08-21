@@ -35,10 +35,18 @@
  * list the app controls.
  *
  * Overwrites whatever the client sent rather than validating it: a mismatch is
- * not a validation error to report, it is a value with no standing. On create
- * the field is always stamped; on update it is only stamped when the client
- * tried to CHANGE it, so an ordinary edit does not silently reassign
- * authorship to whoever happened to save the row.
+ * not a validation error to report, it is a value with no standing.
+ *
+ * On CREATE the field is stamped with the caller. On UPDATE the stored value is
+ * put BACK — authorship is written once. The distinction matters and this
+ * function used to get it wrong: it stamped the caller on update too, so a
+ * second person editing a colleague's record and sending a changed actor field
+ * became its author. Restoring instead means an edit can never move authorship
+ * at all, which is the property the callers actually rely on.
+ *
+ * Nothing catches that difference by accident, either: a test where the editor
+ * IS the original author passes under both behaviours, and that is the natural
+ * test to write.
  */
 function stampActor(e, actorFields, opts) {
   const record = e.record;
@@ -63,17 +71,24 @@ function stampActor(e, actorFields, opts) {
   if (!actorId) return;
 
   const isCreate = !!(opts && opts.isCreate);
-  if (!isCreate) {
-    let before = "";
-    try {
-      before = String(record.original().get(field) || "");
-    } catch (_) {
-      before = "";
-    }
-    const after = String(record.get(field) || "");
-    if (before === after) return;
+  if (isCreate) {
+    record.set(field, actorId);
+    return;
   }
-  record.set(field, actorId);
+
+  // Update: put the stored value back if the client tried to change it. Not the
+  // caller — that would let whoever edits a record take authorship of it.
+  let before = "";
+  try {
+    before = String(record.original().get(field) || "");
+  } catch (_) {
+    // No stored record to compare against; nothing to restore, and stamping
+    // here would invent an author for a row that had none.
+    return;
+  }
+  if (String(record.get(field) || "") !== before) {
+    record.set(field, before);
+  }
 }
 
 module.exports = {

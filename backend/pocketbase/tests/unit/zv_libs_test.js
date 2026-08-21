@@ -99,6 +99,7 @@ test("positiveNumberList rejects a broken ladder WHOLE", () => {
     org.positiveNumberList(null, "steps", FALLBACK), FALLBACK);
 });
 
+
 test("flag is true only on an explicit opt-in", () => {
   assert.equal(org.flag({ x: true }, "x"), true);
   assert.equal(org.flag({ x: "true" }, "x"), false);
@@ -287,10 +288,27 @@ test("an ordinary edit does NOT reassign authorship", () => {
   assert.equal(record.read("author"), "u2");
 });
 
-test("an edit that TRIES to change the actor is overwritten", () => {
+test("an edit that TRIES to change the actor is put BACK", () => {
+  // This test used to expect "u1" — the caller. That was the weaker of the two
+  // possible answers and it was wrong: it let whoever edits a record take
+  // authorship of it. u1 sends author=u9 on a row authored by u2 and ends up
+  // owning it.
+  //
+  // federfall, which this was extracted from, restores the stored value, and its
+  // domain is the argument: "who administered this dose" must not become "who
+  // last saved the row". An update can never move authorship at all.
   const record = recordStub("journal_entries", { author: "u9" }, { author: "u2" });
   authorship.stampActor({ record: record, auth: { id: "u1" } }, actorFields);
-  assert.equal(record.read("author"), "u1");
+  assert.equal(record.read("author"), "u2");
+});
+
+test("...including when the editor names THEMSELVES", () => {
+  // The case that separates the two behaviours, and the one a natural test
+  // misses: with the caller stamped, u1 claiming a row authored by u2 succeeds
+  // and looks like the intended feature.
+  const record = recordStub("journal_entries", { author: "u1" }, { author: "u2" });
+  authorship.stampActor({ record: record, auth: { id: "u1" } }, actorFields);
+  assert.equal(record.read("author"), "u2");
 });
 
 test("a collection outside the map is left alone", () => {
