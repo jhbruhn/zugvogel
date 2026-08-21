@@ -155,7 +155,7 @@ flutter analyze                                   # whole workspace from the roo
 (cd packages/zugvogel_ui && flutter test)
 ```
 
-Flutter 3.44.3 / Dart 3.12, in lockstep with both consuming apps.
+Flutter 3.47.1 / Dart 3.13, in lockstep with both consuming apps.
 
 ## No code generation, anywhere in this repo
 

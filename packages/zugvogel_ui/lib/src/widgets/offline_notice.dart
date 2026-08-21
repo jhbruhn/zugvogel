@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:zugvogel_pb_client/zugvogel_pb_client.dart';
@@ -62,9 +60,9 @@ class _OfflineNoticeState extends ConsumerState<OfflineNotice>
     // Both calls are no-ops once the animation sits at that end, so driving
     // them from build keeps the strip a plain function of the signal.
     if (offline) {
-      unawaited(_controller.forward());
+      _controller.forward();
     } else {
-      unawaited(_controller.reverse());
+      _controller.reverse();
     }
 
     final mediaQuery = MediaQuery.of(context);

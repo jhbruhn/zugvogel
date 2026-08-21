@@ -89,12 +89,12 @@ class _ImageViewerScreenState extends ConsumerState<ImageViewerScreen> {
   void _goTo(int target) {
     final next = target.clamp(0, widget.imageUrls.length - 1);
     if (next == _index) return;
-    unawaited(
-      _controller.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      ),
+    // Not awaited, and no `unawaited()` either: Flutter 3.47 annotates the
+    // animation futures `@awaitNotRequired`, which is what the lint now reads.
+    _controller.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
     );
   }
 
@@ -337,7 +337,7 @@ class _ZoomableImageState extends ConsumerState<_ZoomableImage>
     _zoomAnimation = Matrix4Tween(begin: _transform.value, end: end).animate(
       CurvedAnimation(parent: _animation, curve: Curves.easeOut),
     );
-    unawaited(_animation.forward(from: 0));
+    _animation.forward(from: 0);
     setState(() => _zoomed = !_zoomed);
   }
 
