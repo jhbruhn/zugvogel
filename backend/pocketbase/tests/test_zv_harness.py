@@ -165,6 +165,40 @@ case("login retries instead of returning a 429", "429" in src and "sleep" in src
 case("...a bounded number of times", "attempts" in src)
 
 
+print("\n[the create rate limit]")
+# Behavioural, not source-inspecting: `mk` is FIXTURE creation, so a 429 there
+# aborts the whole suite with `fatal` — and it aborts at whichever fixture
+# happened to be the twenty-first, which is a function of how many tests ran
+# BEFORE it. Adding an assertion in one section then breaks another, and the
+# traceback names a collection whose rules are fine.
+import zv_harness
+
+replies = [(429, None), (429, None), (200, {"id": "rec1"})]
+calls = []
+slept = []
+real_sleep = zv_harness.time.sleep
+zv_harness.time.sleep = lambda s: slept.append(s)
+retrying = H(base="http://127.0.0.1:1")
+retrying.req = lambda *a, **k: (calls.append(a), replies.pop(0))[1]
+made = retrying.mk("token", "nests", {"label": "N1"})
+zv_harness.time.sleep = real_sleep
+case("mk retries a 429 instead of aborting the suite", made == {"id": "rec1"})
+case("...once per refusal, and no more", len(calls) == 3)
+case("...waiting past the window, growing each time", slept == [1.5, 3.0])
+
+giving_up = H(base="http://127.0.0.1:1")
+attempts = []
+giving_up.req = lambda *a, **k: (attempts.append(a), (429, None))[1]
+giving_up.fatal = lambda *a: attempts.append("fatal")
+zv_harness.time.sleep = lambda s: None
+giving_up.mk("token", "nests", {"label": "N1"}, attempts=3)
+zv_harness.time.sleep = real_sleep
+case(
+    "...and gives up bounded, rather than looping on a limit that is not lifting",
+    attempts.count("fatal") == 1 and len(attempts) == 4,
+)
+
+
 print("\n[timestamps]")
 future = H.stamp(days=2)
 past = H.stamp(days=-2)
