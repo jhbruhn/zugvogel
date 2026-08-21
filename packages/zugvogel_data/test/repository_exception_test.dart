@@ -37,32 +37,40 @@ void main() {
     });
   });
 
-  group('serverMessage — a message the server wrote to be READ', () {
+  group('serverCodes — what a hook is allowed to send', () {
     RepositoryException from(int status, Map<String, dynamic> response) =>
         RepositoryException.fromClient(
           ClientException(statusCode: status, response: response),
         );
 
-    test('a hook refusal (400, empty data, prose) comes through', () {
-      // The shape a `throw new BadRequestError("…")` in a PocketBase hook
-      // produces. It is the only party that knows why the write was refused,
-      // so dropping it leaves the user with "could not be saved" and no way
-      // forward.
+    test('a hook refusal carries its code, as the KEY of data', () {
+      // The key is the ONLY part of `data` PocketBase leaves alone: it
+      // rewrites every value to {code: "validation_invalid_value", …} at any
+      // depth, and re-coerces even an already correctly-shaped {code, message}
+      // one level deeper. Measured against 0.39.8.
       final e = from(400, {
-        'data': <String, dynamic>{},
-        'message':
-            'Ein Spot wird erst aktiv, wenn die Erkundung bei '
-            '"Zusage" steht.',
+        'data': {'spot_phase_needs_permitted': 1},
+        'message': 'spot phase requires prospect_stage=permitted',
         'status': 400,
       });
       expect(e.kind, RepositoryErrorKind.validation);
-      expect(e.serverMessage, contains('Zusage'));
+      expect(e.serverCodes, ['spot_phase_needs_permitted']);
     });
 
-    test('per-field validation does NOT (data is populated)', () {
-      // PocketBase's own field validation. `message` is English boilerplate
-      // ("Failed to create record.") and the form shows the field errors, so
-      // the app's localized summary belongs at the top instead.
+    test('several codes come through in order, first match wins upstream', () {
+      final e = from(400, {
+        'data': {'visit_nest_foreign': 1, 'visit_nest_duplicate': 1},
+      });
+      expect(e.serverCodes, hasLength(2));
+      expect(e.serverCodes.first, 'visit_nest_foreign');
+    });
+
+    test('field names arrive the same way, and that is safe', () {
+      // PocketBase's own validation fills `data` with the offending FIELD
+      // names, which are keys too. Nothing distinguishes them structurally — a
+      // caller resolves the codes it knows and ignores the rest, so a field
+      // name finds no translation and falls through to the app's generic copy.
+      // Which is the right outcome anyway: the form marks the fields itself.
       final e = from(400, {
         'data': {
           'name': {
@@ -71,57 +79,50 @@ void main() {
           },
         },
         'message': 'Failed to create record.',
-        'status': 400,
       });
-      expect(e.kind, RepositoryErrorKind.validation);
-      expect(
-        e.serverMessage,
-        isNull,
-        reason:
-            'showing "Failed to create record." would be a regression on '
-            'the localized copy it replaced',
-      );
+      expect(e.serverCodes, ['name']);
     });
 
-    test('an access-rule refusal cannot leak — it arrives as 404', () {
-      // PocketBase hides existence deliberately, so a rule refusal is a 404
-      // with "The requested resource wasn't found." It must never reach the UI
-      // as prose; classifying by kind is what prevents it.
-      final e = from(404, {
-        'data': <String, dynamic>{},
-        'message': "The requested resource wasn't found.",
-        'status': 404,
-      });
-      expect(e.kind, RepositoryErrorKind.notFound);
-      expect(e.serverMessage, isNull);
-    });
-
-    test('no other status contributes a message, however tempting', () {
+    test('no codes on the statuses that are not hook refusals', () {
+      // An access-rule refusal is a 404 — PocketBase hides existence — so it
+      // never carries codes, and neither does anything else.
       for (final status in [0, 401, 403, 404, 500, 502]) {
         expect(
           from(status, {
-            'data': <String, dynamic>{},
-            'message': 'Something in English from the server',
-          }).serverMessage,
-          isNull,
+            'data': {'something': 1},
+          }).serverCodes,
+          isEmpty,
           reason: 'status $status',
         );
       }
       // 422 counts as validation alongside 400.
       expect(
         from(422, {
-          'data': <String, dynamic>{},
-          'message': 'Nicht erlaubt',
-        }).serverMessage,
-        'Nicht erlaubt',
+          'data': {'nest_protected': 1},
+        }).serverCodes,
+        ['nest_protected'],
       );
     });
 
-    test('an empty or missing message is not a message', () {
-      expect(from(400, {'message': ''}).serverMessage, isNull);
-      expect(from(400, {'message': '   '}).serverMessage, isNull);
-      expect(from(400, <String, dynamic>{}).serverMessage, isNull);
-      expect(from(400, {'message': 42}).serverMessage, isNull);
+    test('an absent or malformed data map yields no codes, never a throw', () {
+      expect(from(400, const <String, dynamic>{}).serverCodes, isEmpty);
+      expect(from(400, const {'data': null}).serverCodes, isEmpty);
+      expect(from(400, const {'data': 'nonsense'}).serverCodes, isEmpty);
+      expect(
+        from(400, const {'data': <String, dynamic>{}}).serverCodes,
+        isEmpty,
+      );
+    });
+
+    test('the message is NOT used as copy, whatever it says', () {
+      // A hook's message is an English developer line for the log, and the
+      // server rewrites it anyway ("plain" comes back as "Plain."). Nothing
+      // here exposes it as text for a user.
+      final e = from(400, {
+        'data': {'spot_pause_needs_reason': 1},
+        'message': 'pause requires a reason',
+      });
+      expect(e.message, isNot(contains('pause requires a reason')));
     });
   });
 }

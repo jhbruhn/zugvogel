@@ -1,28 +1,33 @@
 import 'package:zugvogel_data/zugvogel_data.dart';
 import 'package:zugvogel_ui/src/injection/strings.dart';
 
-/// Whether this app's backend writes error messages meant for its users.
+/// Implemented by an app whose backend refuses writes with error CODES.
 ///
-/// **Off by default, and the default is the interesting part.** A PocketBase
-/// hook can refuse a write for a reason no access rule could express, and it is
-/// then the only party that knows why — so showing what it wrote is often
-/// exactly right. But only if the app's hooks were written as *copy*.
 ///
-/// The two consumers differ, which is why this is a per-app switch and not a
-/// behaviour:
+/// The shared package cannot hold the sentences: a code like
+/// `spot_phase_needs_permitted` belongs to one product's domain and its wording
+/// belongs in that product's ARB files. So the mapping is the app's, and this
+/// is the seam — an optional companion to [ZugvogelStrings] that the app's own
+/// implementation can also implement.
 ///
-///   * eiermann's hooks speak German prose to volunteers — "Ein Spot wird erst
-///     aktiv, wenn die Erkundung bei Zusage steht". Hiding that leaves the user
-///     with "could not be saved" and no way forward.
-///   * federfall's are English and some are addressed to a developer —
-///     "audit_events is append-only." Surfacing those in a German UI would be
-///     a regression, and no test would catch it: nothing asserts the wording
-///     of a message that is not supposed to appear.
-///
-/// So an app opts in when its hook messages are ready to be read, and until
-/// then it keeps its own localized copy. Set it where the other bindings are
-/// set.
-bool serverMessagesAreUserFacing = false;
+/// This exists instead of letting the server send prose. A hook does not know
+/// which language the reader speaks, so a German message baked into a hook is
+/// untranslatable by construction; it sends a code and the client owns the
+/// sentence. An app whose hooks send no codes simply does not implement this,
+/// and keeps its generic copy.
+// The lint below suggests a typedef for a one-member abstract class. That is
+// the wrong shape here: the point is that an app's EXISTING strings object
+// carries the lookup, so `errorMessage` finds it without every call site
+// passing a resolver. A function type cannot be implemented by the class that
+// already holds the ARB.
+// ignore: one_member_abstracts
+abstract interface class ServerCodeStrings {
+  /// The sentence for [code], or null when this app does not know it.
+  ///
+  /// Returning null is normal and must stay cheap: `data` keys also carry
+  /// PocketBase's own field names, and those are not codes.
+  String? serverErrorFor(String code);
+}
 
 /// Maps an arbitrary error into user-facing copy.
 ///
@@ -35,19 +40,23 @@ bool serverMessagesAreUserFacing = false;
 /// write whose outcome is genuinely unknown.
 String errorMessage(ZugvogelStrings strings, Object error) {
   if (error is RepositoryException) {
-    // A message the server wrote for a person wins over anything this
-    // function could say — but only where the app has said its hooks write copy
-    // (see [serverMessagesAreUserFacing]). The backend enforces invariants an
-    // access rule cannot express, and when it refuses one it is the only party
-    // that knows why; replacing that with "could not be saved" leaves the user
-    // stuck.
+    // A hook refusal the app has words for beats anything this function could
+    // say. The backend enforces invariants an access rule cannot express, and
+    // when it refuses one it is the only party that knows WHICH — but the
+    // sentence is the client's, because the server does not know the reader's
+    // language.
     //
-    // `serverMessage` is only ever set for a deliberate hook refusal, so
-    // PocketBase's own boilerplate cannot arrive here either way. See
-    // RepositoryException.serverMessage.
-    if (serverMessagesAreUserFacing) {
-      final fromServer = error.serverMessage;
-      if (fromServer != null) return fromServer;
+    // First recognised code wins. Unknown ones are skipped rather than
+    // reported: `data` keys also carry PocketBase's own field names, which are
+    // not codes, and a per-field error is better summarised by the app's
+    // generic copy while the form marks the fields.
+    // A pattern, not an `is` check: promoting a parameter of an unrelated
+    // interface type does not reach through, so the member would not resolve.
+    if (strings case final ServerCodeStrings coded) {
+      for (final code in error.serverCodes) {
+        final text = coded.serverErrorFor(code);
+        if (text != null) return text;
+      }
     }
     return switch (error.kind) {
       RepositoryErrorKind.network => strings.errorOffline,

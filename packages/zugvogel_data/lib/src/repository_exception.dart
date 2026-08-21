@@ -12,7 +12,7 @@ class RepositoryException implements Exception {
     this.kind = RepositoryErrorKind.unknown,
     this.statusCode,
     this.cause,
-    this.serverMessage,
+    this.serverCodes = const <String>[],
   });
 
   /// Builds a [RepositoryException] from a PocketBase [ClientException],
@@ -31,7 +31,7 @@ class RepositoryException implements Exception {
       kind: kind,
       statusCode: status,
       cause: e,
-      serverMessage: _deliberateServerMessage(kind, e),
+      serverCodes: _serverCodes(kind, e),
     );
   }
 
@@ -48,55 +48,55 @@ class RepositoryException implements Exception {
   /// The underlying error, preserved for logging.
   final Object? cause;
 
-  /// A message the SERVER wrote to be read by a person, when it sent one.
+  /// Machine-readable codes a hook attached to a deliberate refusal.
   ///
-  /// Null unless the response has the shape of a deliberate refusal from a hook
-  /// — see [_deliberateServerMessage]. A backend can enforce invariants an
-  /// access rule cannot express, and when it refuses one it is the only party
-  /// that knows why: "a Spot only becomes active once the Erkundung reaches a
-  /// yes" is not a sentence any client can reconstruct from a status code.
-  /// Dropping it leaves the user with "could not be saved" and no way forward,
-  /// which is what happened before this field existed.
-  final String? serverMessage;
+  /// A backend enforces invariants an access rule cannot express, and when it
+  /// refuses one it is the only party that knows which. But it must NOT say so
+  /// in words: it does not know which language the reader speaks, so prose from
+  /// a hook is untranslatable by construction. It sends codes; the client owns
+  /// the sentence.
+  ///
+  /// Empty for everything that is not a hook refusal — see [_serverCodes].
+  final List<String> serverCodes;
 
   /// Whether this looks like a connectivity failure (no server reached).
   bool get isNetwork => kind == RepositoryErrorKind.network;
 
-  /// The server's own message, but only when the response shape says a HOOK
-  /// deliberately wrote it.
+  /// The refusal codes in a response, or empty when there are none.
   ///
-  /// PocketBase produces three different 4xx shapes and only one of them
-  /// carries prose meant for a person:
+  /// **How a code even gets here.** PocketBase rewrites the VALUES in an
+  /// `ApiError`'s `data`: every leaf becomes
+  /// `{code: "validation_invalid_value", message: "Invalid value."}` at any
+  /// depth, and an already correctly-shaped `{code, message}` is re-coerced and
+  /// nested one level deeper. It also rewrites `message` itself — a hook
+  /// throwing "plain" produces "Plain.", capitalised and full-stopped. The one
+  /// thing that survives verbatim is the KEY, so a hook writes its code there:
   ///
-  /// - **field validation** — 400, `data` holds per-field errors, `message` is
-  ///   boilerplate ("Failed to create record.").
-  /// - **a hook's refusal** — 400, `data` is EMPTY, `message` is what the hook
-  ///   wrote.
-  /// - **an access rule** — 404, `data` empty, `message` is "The requested
-  ///   resource wasn't found."
+  /// ```js
+  /// throw new ApiError(400, "spot phase requires prospect_stage=permitted", {
+  ///   spot_phase_needs_permitted: 1,
+  /// });
+  /// ```
   ///
-  /// So: a validation status with an EMPTY `data` map is a hook talking. A
-  /// populated `data` is per-field validation, where the form shows the fields
-  /// and the app's own summary belongs at the top. And an access-rule refusal
-  /// arrives as 404 — PocketBase hides existence deliberately — so it never
-  /// reaches this branch and its English copy cannot leak into the UI.
+  /// Measured against PocketBase 0.39.8, not assumed.
   ///
-  /// Restricting this to the validation kinds is the whole safety argument. A
-  /// blanket "show the server's message" would surface PocketBase's own English
-  /// boilerplate for every 401, 404 and 500, which is worse than the localized
-  /// copy it would replace.
-  static String? _deliberateServerMessage(
+  /// **Why field names cannot be confused with codes.** PocketBase's own
+  /// field validation fills `data` with the offending FIELD names, which are
+  /// keys too. Nothing tells them apart structurally — a caller resolves the
+  /// codes it knows and ignores the rest, so an unrecognised field name finds
+  /// no translation and falls through to the app's generic copy. Which is the
+  /// right outcome for a per-field error anyway: the form marks the fields.
+  ///
+  /// Restricted to the validation kinds: an access-rule refusal is a 404 (
+  /// PocketBase hides existence deliberately) and carries no codes.
+  static List<String> _serverCodes(
     RepositoryErrorKind kind,
     ClientException e,
   ) {
-    if (kind != RepositoryErrorKind.validation) return null;
-    final response = e.response;
-    final data = response['data'];
-    // A non-empty `data` means per-field errors: not a hook's prose.
-    if (data is Map && data.isNotEmpty) return null;
-    final message = response['message'];
-    if (message is! String || message.trim().isEmpty) return null;
-    return message.trim();
+    if (kind != RepositoryErrorKind.validation) return const <String>[];
+    final data = e.response['data'];
+    if (data is! Map) return const <String>[];
+    return data.keys.map((k) => k.toString()).toList(growable: false);
   }
 
   static String _messageFor(RepositoryErrorKind kind, ClientException e) {
