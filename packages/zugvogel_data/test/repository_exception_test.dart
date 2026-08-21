@@ -45,12 +45,13 @@ void main() {
 
     test('a hook refusal (400, empty data, prose) comes through', () {
       // The shape a `throw new BadRequestError("…")` in a PocketBase hook
-      // produces. It is the only party that knows why the write was refused, so
-      // dropping it leaves the user with "could not be saved" and no way
+      // produces. It is the only party that knows why the write was refused,
+      // so dropping it leaves the user with "could not be saved" and no way
       // forward.
       final e = from(400, {
         'data': <String, dynamic>{},
-        'message': 'Ein Spot wird erst aktiv, wenn die Erkundung bei '
+        'message':
+            'Ein Spot wird erst aktiv, wenn die Erkundung bei '
             '"Zusage" steht.',
         'status': 400,
       });
@@ -60,11 +61,14 @@ void main() {
 
     test('per-field validation does NOT (data is populated)', () {
       // PocketBase's own field validation. `message` is English boilerplate
-      // ("Failed to create record.") and the form shows the field errors, so the
-      // app's localized summary belongs at the top instead.
+      // ("Failed to create record.") and the form shows the field errors, so
+      // the app's localized summary belongs at the top instead.
       final e = from(400, {
         'data': {
-          'name': {'code': 'validation_required', 'message': 'Cannot be blank.'},
+          'name': {
+            'code': 'validation_required',
+            'message': 'Cannot be blank.',
+          },
         },
         'message': 'Failed to create record.',
         'status': 400,
@@ -73,15 +77,16 @@ void main() {
       expect(
         e.serverMessage,
         isNull,
-        reason: 'showing "Failed to create record." would be a regression on '
+        reason:
+            'showing "Failed to create record." would be a regression on '
             'the localized copy it replaced',
       );
     });
 
     test('an access-rule refusal cannot leak — it arrives as 404', () {
-      // PocketBase hides existence deliberately, so a rule refusal is a 404 with
-      // "The requested resource wasn't found." It must never reach the UI as
-      // prose; classifying by kind is what prevents it.
+      // PocketBase hides existence deliberately, so a rule refusal is a 404
+      // with "The requested resource wasn't found." It must never reach the UI
+      // as prose; classifying by kind is what prevents it.
       final e = from(404, {
         'data': <String, dynamic>{},
         'message': "The requested resource wasn't found.",
@@ -104,8 +109,10 @@ void main() {
       }
       // 422 counts as validation alongside 400.
       expect(
-        from(422, {'data': <String, dynamic>{}, 'message': 'Nicht erlaubt'})
-            .serverMessage,
+        from(422, {
+          'data': <String, dynamic>{},
+          'message': 'Nicht erlaubt',
+        }).serverMessage,
         'Nicht erlaubt',
       );
     });

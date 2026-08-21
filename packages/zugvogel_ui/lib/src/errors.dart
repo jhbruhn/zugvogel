@@ -12,12 +12,12 @@ import 'package:zugvogel_ui/src/injection/strings.dart';
 /// write whose outcome is genuinely unknown.
 String errorMessage(ZugvogelStrings strings, Object error) {
   if (error is RepositoryException) {
-    // A message the server wrote for a person wins over anything this function
-    // could say. The backend enforces invariants an access rule cannot express,
-    // and when it refuses one it is the only party that knows why — "a Spot only
-    // becomes active once the Erkundung reaches a yes" is not reconstructible
-    // from a status code. Replacing it with "could not be saved" leaves the user
-    // stuck, which is exactly what it did before.
+    // A message the server wrote for a person wins over anything this
+    // function could say. The backend enforces invariants an access rule
+    // cannot express, and when it refuses one it is the only party that knows
+    // why — "a Spot only becomes active once the Erkundung reaches a yes" is
+    // not reconstructible from a status code. Replacing it with "could not be
+    // saved" leaves the user stuck, which is what it did before.
     //
     // Only ever set for a deliberate hook refusal; PocketBase's own English
     // boilerplate cannot arrive here. See RepositoryException.serverMessage.

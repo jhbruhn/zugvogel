@@ -68,11 +68,12 @@ class RepositoryException implements Exception {
   /// PocketBase produces three different 4xx shapes and only one of them
   /// carries prose meant for a person:
   ///
-  /// | source                  | status | `data`            | `message`             |
-  /// |-------------------------|--------|-------------------|-----------------------|
-  /// | field validation        | 400    | per-field errors  | "Failed to create record." |
-  /// | a hook's refusal        | 400    | **empty**         | what the hook wrote   |
-  /// | an access rule          | 404    | empty             | "The requested resource wasn't found." |
+  /// - **field validation** — 400, `data` holds per-field errors, `message` is
+  ///   boilerplate ("Failed to create record.").
+  /// - **a hook's refusal** — 400, `data` is EMPTY, `message` is what the hook
+  ///   wrote.
+  /// - **an access rule** — 404, `data` empty, `message` is "The requested
+  ///   resource wasn't found."
   ///
   /// So: a validation status with an EMPTY `data` map is a hook talking. A
   /// populated `data` is per-field validation, where the form shows the fields
