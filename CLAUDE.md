@@ -155,7 +155,55 @@ flutter analyze                                   # whole workspace from the roo
 (cd packages/zugvogel_ui && flutter test)
 ```
 
-Flutter 3.47.1 / Dart 3.13, in lockstep with both consuming apps.
+Flutter 3.44.3 / Dart 3.12, in lockstep with both consuming apps. The pubspecs
+require `^3.44.0`, which is what stops a pin bump from dragging an app onto
+3.47 — see the section below for what 3.47 does.
+
+### Do not ship on Flutter 3.47.x
+
+3.47 silently loses images on **Firefox and Safari, iPhone included**: a
+thumbnail paints once and then draws nothing on any later repaint, until a full
+page reload. `CachedFileImage` is the widget it surfaces through, so both apps
+inherit it, but nothing in this repo is at fault and no change here fixes it.
+
+Chrome hides the bug, which is why it survives casual testing. `--wasm` ships
+skwasm plus a CanvasKit fallback, and flutter.js's default `wasmAllowList` is
+`{blink: true, gecko: false, webkit: false}` — so Chrome alone runs skwasm,
+which copies decoded bytes eagerly into an `ImageBitmap` it owns. Every other
+browser falls back to CanvasKit, where an image decoded from bytes is a **lazy**
+SkImage over the `<img>` element the codec created, re-uploading its texture on
+every paint. flutter/flutter#186032 then taught the engine to reclaim that
+element aggressively: `ImageElementImageSource._doClose()` went from a
+deliberate no-op ("let the browser garbage collect it") to
+`imageElement.src = ''`. That PR's stated purpose was to stop iOS Safari
+crashing on many large images, so the regression lands in the exact case it was
+written for.
+
+Established by A/B, not by reading the source: one commit, built
+`--wasm --release` against one backend and served with identical COOP/COEP
+headers, breaks on 3.47.1 and works on 3.44.3. Three app-side workarounds were
+tried and all three failed — clamping the decode below the server thumb,
+raising the `ImageCache` ceilings, and waiting out the new 30s decode timeout.
+Setting `wasmAllowList: {gecko: true}` does move Firefox onto skwasm and does
+fix it there, but `webkit` cannot follow (older iOS has no WasmGC at all), so
+it is not a fix for anyone who ships to iPhones.
+
+**3.48 fixes it.** flutter/flutter#188573 moves image decoding and lifetime onto
+the shared frontend skwasm already used, and 3.48.0-0.2.pre renders correctly on
+the same harness. It is a refactor rather than a targeted fix, so do not wait
+for a 3.47.2 backport. Go 3.44.3 → 3.48 and skip 3.47 entirely.
+
+That trap used to sit in *this* repo and is now closed: the pubspecs required
+`^3.47.0` while both apps went back to 3.44.3, so their existing pins resolved
+only because they predated the bump — and the next pin bump would have failed
+their builds. They require `^3.44.0` again, which is what makes a pin bump safe
+while 3.47 is being skipped. The Dart packages and the PocketBase image are
+separately pinned (see the two-pin table in each app); this is the one that
+bites.
+
+When 3.48 lands, all three move together: this repo's pubspecs and CI, then each
+app's pin, CI, Dockerfile and onboarding line.
+
 
 ## No code generation, anywhere in this repo
 

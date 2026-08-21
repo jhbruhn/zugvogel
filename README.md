@@ -90,9 +90,9 @@ templates. Both are spelled out in `CLAUDE.md`.
 
 ## Toolchain
 
-Flutter 3.47.1 / Dart 3.13. This library is compiled by the consuming apps'
+Flutter 3.44.3 / Dart 3.12. This library is compiled by the consuming apps'
 toolchain, so the version in `.github/workflows/ci.yml` must stay in lockstep
-with theirs.
+with theirs. 3.47.x is skipped deliberately — see CLAUDE.md.
 
 ## Licence
 

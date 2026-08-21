@@ -15,7 +15,7 @@ env:
   # Must stay in lockstep with both consuming apps (federfall, eiermann): this
   # library is compiled by their toolchain, not its own, so a version they do
   # not have is a break they discover and not CI.
-  FLUTTER_VERSION: "3.47.1"
+  FLUTTER_VERSION: "3.44.3"
 
 jobs:
   dart:
