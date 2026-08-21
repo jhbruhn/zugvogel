@@ -19,9 +19,9 @@ import 'package:zugvogel_ui/src/injection/strings.dart';
 ///     a regression, and no test would catch it: nothing asserts the wording
 ///     of a message that is not supposed to appear.
 ///
-/// So an app opts in when its hook messages are ready to be read, and until then
-/// it keeps its own localized copy. Set it in the same place as the other
-/// bindings.
+/// So an app opts in when its hook messages are ready to be read, and until
+/// then it keeps its own localized copy. Set it where the other bindings are
+/// set.
 bool serverMessagesAreUserFacing = false;
 
 /// Maps an arbitrary error into user-facing copy.
