@@ -15,9 +15,9 @@ import 'package:zugvogel_ui/src/injection/strings.dart';
 ///     aktiv, wenn die Erkundung bei Zusage steht". Hiding that leaves the user
 ///     with "could not be saved" and no way forward.
 ///   * federfall's are English and some are addressed to a developer —
-///     "audit_events is append-only." Surfacing those in a German UI would be a
-///     regression, and no test would catch it: nothing asserts the wording of a
-///     message that is not supposed to appear.
+///     "audit_events is append-only." Surfacing those in a German UI would be
+///     a regression, and no test would catch it: nothing asserts the wording
+///     of a message that is not supposed to appear.
 ///
 /// So an app opts in when its hook messages are ready to be read, and until then
 /// it keeps its own localized copy. Set it in the same place as the other
