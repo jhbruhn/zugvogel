@@ -266,32 +266,59 @@ def geocode_walled_off(check, req, service, token):
           f"status {status}")
 
 
-def geocode_cache(check, req, service, token, seed):
-    """zv_geocode_route: a cached answer is served without an upstream call.
+def geocode_cache(check, req, service, token, seed, read_row):
+    """zv_geocode_route: the cache — read path, key rounding and hit accounting.
 
-    [seed] plants a row and returns nothing — the caller supplies it because it
-    owns its harness's superuser and date helpers. `geocode_cache` has all-null
-    API rules, so only a superuser can plant one.
+    [seed] plants a row and returns its id; [read_row] fetches one by id. Both
+    are the caller's, because `geocode_cache` has all-null API rules and only a
+    superuser can touch it, and because expiry needs the caller's date helper.
+    [seed] takes `(kind, key, response, days)` — negative days for an expired row.
 
-    This is the only way the READ path is observable at all: with no reachable
+    This is the only way the read path is observable at all: with no reachable
     geocoder there is no successful response to store, and `cachePut` swallows
     every error by design — so a cache that had silently stopped working (a
     module context that could not `new Record`, a drifted key) would look exactly
-    like a cache that was never exercised. The upstream here is unreachable, so a
+    like a cache that was never exercised. The upstream is unreachable here, so a
     200 can ONLY have come from the cache.
     """
-    seed("reverse", "52.50000,13.40000", {
+    payload = {
         "result": {
             "lat": 52.5, "lon": 13.4, "displayName": "cached Berlin",
             "city": "Berlin", "region": "Berlin",
         }
-    })
-    status, body = req(
-        "GET", f"/api/{service}/geocode/reverse?lat=52.5&lon=13.4", token
-    )
+    }
+    row_id = seed("reverse", "52.50000,13.40000", payload, 1)
+
+    def reverse(pin):
+        return req("GET", f"/api/{service}/geocode/reverse?lat={pin}", token)
+
+    status, body = reverse("52.5&lon=13.4")
     check(
         "a cached reverse lookup is served without reaching the geocoder",
         status == 200
         and ((body or {}).get("result") or {}).get("displayName") == "cached Berlin",
         f"{status} {body}",
     )
+    # The ~1m rounding IS the key: a pin differing below the 5th decimal must
+    # land on the same entry, and one differing above it must not.
+    status, _ = reverse("52.500001&lon=13.4")
+    check("...and a pin within a metre shares that entry", status == 200,
+          f"status {status}")
+    status, _ = reverse("52.6&lon=13.4")
+    check("...while a different pin misses it and goes upstream", status == 502,
+          f"status {status}")
+
+    # Hit accounting is best-effort, and it is also the only proof the module can
+    # WRITE this collection at all — a silently broken `save` here is what would
+    # make the whole cache a no-op.
+    row = read_row(row_id)
+    check(
+        "a cache hit is counted (the module can write the cache)",
+        (row or {}).get("hits", 0) >= 2,
+        f"hits={(row or {}).get('hits')}",
+    )
+
+    seed("reverse", "10.00000,10.00000", payload, -1)
+    status, _ = reverse("10&lon=10")
+    check("an expired cache row is a miss, not a stale answer", status == 502,
+          f"status {status}")
