@@ -36,4 +36,85 @@ void main() {
       expect(of(404).toString(), contains('404'));
     });
   });
+
+  group('serverMessage — a message the server wrote to be READ', () {
+    RepositoryException from(int status, Map<String, dynamic> response) =>
+        RepositoryException.fromClient(
+          ClientException(statusCode: status, response: response),
+        );
+
+    test('a hook refusal (400, empty data, prose) comes through', () {
+      // The shape a `throw new BadRequestError("…")` in a PocketBase hook
+      // produces. It is the only party that knows why the write was refused, so
+      // dropping it leaves the user with "could not be saved" and no way
+      // forward.
+      final e = from(400, {
+        'data': <String, dynamic>{},
+        'message': 'Ein Spot wird erst aktiv, wenn die Erkundung bei '
+            '"Zusage" steht.',
+        'status': 400,
+      });
+      expect(e.kind, RepositoryErrorKind.validation);
+      expect(e.serverMessage, contains('Zusage'));
+    });
+
+    test('per-field validation does NOT (data is populated)', () {
+      // PocketBase's own field validation. `message` is English boilerplate
+      // ("Failed to create record.") and the form shows the field errors, so the
+      // app's localized summary belongs at the top instead.
+      final e = from(400, {
+        'data': {
+          'name': {'code': 'validation_required', 'message': 'Cannot be blank.'},
+        },
+        'message': 'Failed to create record.',
+        'status': 400,
+      });
+      expect(e.kind, RepositoryErrorKind.validation);
+      expect(
+        e.serverMessage,
+        isNull,
+        reason: 'showing "Failed to create record." would be a regression on '
+            'the localized copy it replaced',
+      );
+    });
+
+    test('an access-rule refusal cannot leak — it arrives as 404', () {
+      // PocketBase hides existence deliberately, so a rule refusal is a 404 with
+      // "The requested resource wasn't found." It must never reach the UI as
+      // prose; classifying by kind is what prevents it.
+      final e = from(404, {
+        'data': <String, dynamic>{},
+        'message': "The requested resource wasn't found.",
+        'status': 404,
+      });
+      expect(e.kind, RepositoryErrorKind.notFound);
+      expect(e.serverMessage, isNull);
+    });
+
+    test('no other status contributes a message, however tempting', () {
+      for (final status in [0, 401, 403, 404, 500, 502]) {
+        expect(
+          from(status, {
+            'data': <String, dynamic>{},
+            'message': 'Something in English from the server',
+          }).serverMessage,
+          isNull,
+          reason: 'status $status',
+        );
+      }
+      // 422 counts as validation alongside 400.
+      expect(
+        from(422, {'data': <String, dynamic>{}, 'message': 'Nicht erlaubt'})
+            .serverMessage,
+        'Nicht erlaubt',
+      );
+    });
+
+    test('an empty or missing message is not a message', () {
+      expect(from(400, {'message': ''}).serverMessage, isNull);
+      expect(from(400, {'message': '   '}).serverMessage, isNull);
+      expect(from(400, <String, dynamic>{}).serverMessage, isNull);
+      expect(from(400, {'message': 42}).serverMessage, isNull);
+    });
+  });
 }
