@@ -248,6 +248,45 @@ test("refsFor collects only the fields a record actually has", () => {
   );
 });
 
+test("the correlation columns default to the spelling federfall stores", () => {
+  // The registry above configures no column names, which is federfall's case.
+  // Changing what those rows land in is a wire change to a table nothing can
+  // rewrite, so the default is asserted rather than assumed.
+  assert.deepEqual(audit.correlationColumns, {
+    id: "case_id",
+    label: "case_label",
+  });
+});
+
+test("an app whose centre is not a case names its own columns", () => {
+  // eiermann's is a Spot. Before this, the resolution honoured the registry and
+  // the WRITE did not, so the row landed in `case_id` whatever the app called
+  // its centre — federfall's vocabulary, in another product's database, in the
+  // one table that cannot be rewritten afterwards.
+  const bound = zvAudit.withRegistry({
+    correlation: {
+      collection: "spots",
+      field: "spot",
+      labelField: "name",
+      column: "spot_id",
+      labelColumn: "spot_label",
+    },
+  });
+  assert.deepEqual(bound.correlationColumns, {
+    id: "spot_id",
+    label: "spot_label",
+  });
+});
+
+test("a registry with no correlation at all still names the columns", () => {
+  // `correlation` is optional like every other key. The columns are still
+  // written on every row — empty — so their names cannot be null.
+  assert.deepEqual(zvAudit.withRegistry({}).correlationColumns, {
+    id: "case_id",
+    label: "case_label",
+  });
+});
+
 test("requestId is stable within one request and fresh without a store", () => {
   const store = {};
   const e = {

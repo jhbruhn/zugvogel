@@ -43,7 +43,8 @@
 //     relationTargets:   {field: collection}    by field name
 //     relationFields:    {collection: {field: collection}}  per-collection
 //     refFields:         [field]                copied into `refs`
-//     correlation:       {collection, field, labelField, via:{c:{field,collection}}}
+//     correlation:       {collection, field, labelField, column, labelColumn,
+//                         via:{c:{field,collection}}}
 //     loginFailedAction: "auth.login_failed"
 //   }
 //
@@ -164,6 +165,15 @@ function withRegistry(registry) {
   const refFields = r.refFields || [];
   const defaultSeverity = r.defaultSeverity || {};
   const correlation = r.correlation || null;
+  // Which COLUMNS the correlation lands in. The resolution above is already the
+  // app's — which record is the centre, and which children reach it through a
+  // parent — but the row it produced was written to `case_id`/`case_label`
+  // regardless, and a stored column name outlives every rename. An app whose
+  // centre is a Spot would have had federfall's vocabulary in its database
+  // permanently, or a forked copy of this file. Defaults keep federfall still.
+  const correlationColumn = (correlation && correlation.column) || "case_id";
+  const correlationLabelColumn =
+    (correlation && correlation.labelColumn) || "case_label";
 
   const isAuthCollection = (name) =>
     name === "users" || name === "_superusers";
@@ -403,8 +413,12 @@ function withRegistry(registry) {
    *              resolvable — model-only RecordEvents have none, which is why
    *              the emitters hang off the *Request hooks.
    * @param action the action string, from the app's own registry.
-   * @param opts  {app, org, subject:{collection,id,label}, record, caseId,
-   *               caseLabel, refs, changes, detail, severity, actorKind, actor}
+   * @param opts  {app, org, subject:{collection,id,label}, record,
+   *               correlationId, correlationLabel, refs, changes, detail,
+   *               severity, actorKind, actor}
+   *              `caseId`/`caseLabel` are accepted as the older spelling of the
+   *              correlation pair — federfall's call sites, and the name this
+   *              had when a case was the only centre there was.
    *              `app` must be the transaction app when emitting from inside a
    *              route's runInTransaction, so the event commits with the writes
    *              it describes. `record` is a shorthand for `subject` and also
@@ -508,30 +522,30 @@ function withRegistry(registry) {
       // clutch — and an audit row is far more useful filed under it. Which one
       // that is, and which children reach it through a parent, is the app's;
       // `registry.correlation` says so.
-      let caseId = String(o.caseId || "");
-      let caseLabel = String(o.caseLabel || "");
+      let correlationId = String(o.correlationId || o.caseId || "");
+      let correlationLabel = String(o.correlationLabel || o.caseLabel || "");
       if (correlation) {
-        if (!caseId && subjectCollection === correlation.collection) {
-          caseId = subjectId;
+        if (!correlationId && subjectCollection === correlation.collection) {
+          correlationId = subjectId;
         }
-        if (!caseId && rec) {
+        if (!correlationId && rec) {
           try {
-            caseId = rec.getString(correlation.field);
+            correlationId = rec.getString(correlation.field);
           } catch (_) {
-            caseId = "";
+            correlationId = "";
           }
         }
         // A record that belongs to the centre only through its PARENT. Without
         // this, such a row edited directly through the collection API filed
         // under nothing at all and never appeared in the activity of the record
         // it was about.
-        if (!caseId && rec) {
+        if (!correlationId && rec) {
           const via = (correlation.via || {})[subjectCollection];
           if (via) {
             try {
               const parentId = rec.getString(via.field);
               if (parentId) {
-                caseId = app
+                correlationId = app
                   .findRecordById(via.collection, parentId)
                   .getString(correlation.field);
               }
@@ -543,13 +557,13 @@ function withRegistry(registry) {
         // The centre's human-readable number, snapshotted like every other
         // label here. Free when the subject IS the centre; otherwise one
         // indexed read, and only for rows that belong to one at all.
-        if (!caseLabel && caseId && correlation.labelField) {
+        if (!correlationLabel && correlationId && correlation.labelField) {
           if (subjectCollection === correlation.collection && subjectLabelValue) {
-            caseLabel = subjectLabelValue;
+            correlationLabel = subjectLabelValue;
           } else {
             try {
-              caseLabel = app
-                .findRecordById(correlation.collection, caseId)
+              correlationLabel = app
+                .findRecordById(correlation.collection, correlationId)
                 .getString(correlation.labelField);
             } catch (_) {
               // Already gone — the id still correlates the rows.
@@ -568,8 +582,8 @@ function withRegistry(registry) {
       row.set("subject_collection", subjectCollection);
       row.set("subject_id", subjectId);
       row.set("subject_label", subjectLabelValue);
-      row.set("case_id", caseId);
-      row.set("case_label", caseLabel);
+      row.set(correlationColumn, correlationId);
+      row.set(correlationLabelColumn, correlationLabel);
       if (o.refs) row.set("refs", o.refs);
       if (o.changes && o.changes.length) row.set("changes", o.changes);
       if (o.detail) row.set("detail", o.detail);
@@ -689,6 +703,15 @@ function withRegistry(registry) {
     requestId: requestId,
     emit: emit,
     emitLoginFailed: emitLoginFailed,
+    // The resolved pair, so the app can assert its own schema carries the
+    // columns its registry asks for. Without this the only way to find a
+    // mismatch is a live write, and `emit` never throws — a wrong column name
+    // would be a warning in a log nobody is reading, and a correlation that is
+    // simply always empty.
+    correlationColumns: {
+      id: correlationColumn,
+      label: correlationLabelColumn,
+    },
   };
 }
 
