@@ -125,6 +125,7 @@ class DestructiveDialog extends StatelessWidget {
         // Last, so it lands in the primary (trailing) position.
         if (alternativeLabel case final label?)
           FilledButton(
+            style: FilledButton.styleFrom(minimumSize: kDialogActionSize),
             onPressed: () =>
                 Navigator.of(context).pop(DestructiveChoice.alternative),
             child: Text(label),

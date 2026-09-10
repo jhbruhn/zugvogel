@@ -5,6 +5,16 @@ import 'package:zugvogel_ui/zugvogel_ui.dart';
 import 'support/host.dart';
 import 'support/strings.dart';
 
+/// A consuming app's theme that forces every filled button to fill its width —
+/// what federfall and eiermann both did to make [PrimaryButton] fill a form,
+/// before the button carried its own width. Kept here as the adversary: what a
+/// dialog-row button has to survive.
+final _fullWidthFilledTheme = ThemeData(
+  filledButtonTheme: FilledButtonThemeData(
+    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+  ),
+);
+
 void main() {
   group('PrimaryButton', () {
     testWidgets('a busy button shows a spinner and refuses taps', (
@@ -50,9 +60,72 @@ void main() {
       );
       expect(find.byIcon(Icons.save), findsNothing);
     });
+    testWidgets('fills its width without help from the ambient theme', (
+      tester,
+    ) async {
+      // The width used to come from the app setting `filledButtonTheme` to an
+      // infinite minimum, which made every other filled button in that app
+      // full-width too — including a dialog's confirm. A widget documented as
+      // full-width states it itself, so an app can keep a sane default.
+      await tester.pumpWidget(
+        host(
+          Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: const PrimaryButton(label: 'Save', onPressed: null),
+            ),
+          ),
+        ),
+      );
+      expect(tester.getSize(find.byType(FilledButton)).width, 400);
+    });
+
+    testWidgets('fills its width with an icon too', (tester) async {
+      await tester.pumpWidget(
+        host(
+          Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: const PrimaryButton(
+                label: 'Save',
+                icon: Icons.save,
+                onPressed: null,
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(tester.getSize(find.byType(FilledButton)).width, 400);
+    });
   });
 
   group('DestructiveActionButton (federfall-qo8f)', () {
+    testWidgets('keeps its natural width under a full-width app theme', (
+      tester,
+    ) async {
+      // It only ever sits in a dialog's action row. Obeying the app's
+      // form-button width there takes the whole bar, overflows the
+      // OverflowBar and drops the Cancel beside it onto a line of its own.
+      await tester.pumpWidget(
+        host(
+          Align(
+            alignment: Alignment.topLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: DestructiveActionButton(
+                label: 'Delete',
+                onPressed: () {},
+              ),
+            ),
+          ),
+          theme: _fullWidthFilledTheme,
+        ),
+      );
+      expect(tester.getSize(find.byType(FilledButton)).width, lessThan(400));
+    });
+
     testWidgets('is filled, not a bare TextButton beside Cancel', (
       tester,
     ) async {

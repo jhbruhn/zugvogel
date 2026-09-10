@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
 
+/// The size a button in a dialog's action row asks for.
+///
+/// 64 is Material's own minimum width; 48 keeps the touch target. It has to be
+/// stated rather than inherited because a consuming app may set
+/// `filledButtonTheme` to an infinite minimum width for its form buttons — see
+/// `PrimaryButton` — and an action-row button that obeys that takes the whole
+/// bar, overflowing the OverflowBar so the Cancel beside it lands on a line of
+/// its own.
+const kDialogActionSize = Size(64, 48);
+
 /// The confirm button on a dialog that is about to destroy something
 /// (federfall-qo8f).
 ///
@@ -39,6 +49,8 @@ class DestructiveActionButton extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     if (demoted) {
+      // No minimumSize: an outlined button is not subject to the app's
+      // filledButtonTheme, so the demoted variant never stretched.
       final style = OutlinedButton.styleFrom(
         foregroundColor: scheme.error,
         side: BorderSide(color: scheme.error),
@@ -60,6 +72,7 @@ class DestructiveActionButton extends StatelessWidget {
     final style = FilledButton.styleFrom(
       backgroundColor: scheme.error,
       foregroundColor: scheme.onError,
+      minimumSize: kDialogActionSize,
     );
     return icon == null
         ? FilledButton(
