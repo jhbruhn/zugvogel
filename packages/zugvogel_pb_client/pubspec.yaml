@@ -4,23 +4,14 @@ description: >-
   storage, reachability probe, /info reader, version compatibility, session
   refresh, realtime subscriptions and connectivity. Flutter package (secure
   storage and connectivity are platform plugins).
-version: 0.1.0
+version: 0.2.0
 publish_to: none
 repository: https://github.com/jhbruhn/zugvogel
 issue_tracker: https://github.com/jhbruhn/eiermann/issues
-
 environment:
   sdk: ^3.12.0
   flutter: ^3.44.0
-
-# Part of the Zugvogel pub workspace (see ../../pubspec.yaml).
 resolution: workspace
-
-# No build_runner and no riverpod_generator on purpose. Both apps consume this
-# package as a git dependency, and codegen cannot run inside a fetched
-# dependency — so every provider here is hand-written against riverpod's
-# non-generated API. In riverpod 3 a plain Provider is keepAlive by default,
-# which is what @Riverpod(keepAlive: true) meant; .autoDispose is explicit.
 dependencies:
   connectivity_plus: ^7.2.0
   flutter:
@@ -35,7 +26,6 @@ dependencies:
   shared_preferences: ^2.5.5
   zugvogel_core:
     path: ../zugvogel_core
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
