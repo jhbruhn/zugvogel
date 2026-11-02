@@ -31,7 +31,7 @@ dependencies:
   http: ^1.3.0
   meta: ^1.16.0
   package_info_plus: ^10.2.0
-  pocketbase: ^0.24.0
+  pocketbase: ^0.25.3
   shared_preferences: ^2.5.5
   zugvogel_core:
     path: ../zugvogel_core

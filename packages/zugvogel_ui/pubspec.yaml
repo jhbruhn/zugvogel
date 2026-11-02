@@ -17,8 +17,8 @@ environment:
 resolution: workspace
 
 dependencies:
-  cached_network_image: ^3.4.1
-  cached_network_image_platform_interface: ^4.1.1
+  cached_network_image: ^4.0.3
+  cached_network_image_platform_interface: ^5.0.2
   crop_image: ^1.0.17
   fl_chart: ^1.2.0
   flutter:
@@ -48,7 +48,7 @@ dev_dependencies:
   mocktail: ^1.0.5
   # Only the tests reach for it, to build the ClientException a
   # RepositoryException is translated from.
-  pocketbase: ^0.24.0
+  pocketbase: ^0.25.3
   very_good_analysis: ^10.3.0
 
 flutter:

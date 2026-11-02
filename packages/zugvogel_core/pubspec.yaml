@@ -16,7 +16,7 @@ resolution: workspace
 
 dependencies:
   meta: ^1.16.0
-  pocketbase: ^0.24.0
+  pocketbase: ^0.25.3
 
 dev_dependencies:
   test: ^1.25.0
