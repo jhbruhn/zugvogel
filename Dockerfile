@@ -42,20 +42,26 @@ FROM alpine:3.20 AS pbfetch
 # Keep in lockstep across both apps. The JSVM's behaviour is version-specific in
 # ways that have cost real time (JSONRaw byte arrays, the view-query parser), so
 # "whatever each app happened to pin" is not a position worth holding.
-ARG PB_VERSION=0.39.8
+ARG PB_VERSION=0.41.1
 ARG TARGETARCH
 RUN apk add --no-cache unzip wget ca-certificates
 WORKDIR /pb
 # Checksums per architecture, verified before unzip. A silent substitution of the
-# server binary is the one supply-chain step worth checking by hand.
+# server binary is the one supply-chain step worth checking by hand. They come
+# from upstream's checksums.txt at the same URL with `{filename}` = checksums.txt.
+#
+# PocketBase left GitHub at 0.41.0: releases now live on ganigeorgiev.com, and
+# this /meta/…/download/{tag}/{filename} path is the stable URL upstream offers
+# image maintainers (it redirects to the actual file). Releases up to 0.40.6 stay
+# on github.com/pocketbase/pocketbase/releases.
 RUN set -eux; \
     case "${TARGETARCH}" in \
-        amd64) PB_ARCH=amd64; PB_SHA256=3b675575ff0e6dcc5befc85a9644aea6b04ac617ce125ecb2b6989a3c5b5664f ;; \
-        arm64) PB_ARCH=arm64; PB_SHA256=d9e44e40f2483b468bb4dd64e12b554aa85941dc5ee9c4bb87aee8fa9e469425 ;; \
-        arm)   PB_ARCH=armv7; PB_SHA256=4824b6999c93227a2a544783e4007e57f43b72aac37f2aebbc99fe75055328b9 ;; \
+        amd64) PB_ARCH=amd64; PB_SHA256=7504ec99a85fe405fc9941b4d94bdea20733b53707c8251b66fd0daa1444347e ;; \
+        arm64) PB_ARCH=arm64; PB_SHA256=341a249f97f4ff1ba8dfff81d357eb281cd346fbddae8b6ea43193f0647e036d ;; \
+        arm)   PB_ARCH=armv7; PB_SHA256=c04fd7d05323efdb0c7a55e46e4aa0e8f69203b10604d17e350b30c6e5528ec9 ;; \
         *)     echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
-    wget -q "https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${PB_ARCH}.zip" -O /tmp/pb.zip; \
+    wget -q "https://ganigeorgiev.com/meta/pocketbase/pocketbase/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${PB_ARCH}.zip" -O /tmp/pb.zip; \
     echo "${PB_SHA256}  /tmp/pb.zip" | sha256sum -c -; \
     unzip /tmp/pb.zip -d /pb; \
     rm /tmp/pb.zip; \
@@ -63,7 +69,7 @@ RUN set -eux; \
 
 # ── The base runtime ──────────────────────────────────────────────────────────
 FROM alpine:3.20
-ARG PB_VERSION=0.39.8
+ARG PB_VERSION=0.41.1
 # Readable from a running container and from `docker inspect`, so "which
 # PocketBase is this?" has an answer that does not require reading a Dockerfile.
 ENV ZUGVOGEL_PB_VERSION=${PB_VERSION}
