@@ -42,7 +42,7 @@ FROM alpine:3.20 AS pbfetch
 # Keep in lockstep across both apps. The JSVM's behaviour is version-specific in
 # ways that have cost real time (JSONRaw byte arrays, the view-query parser), so
 # "whatever each app happened to pin" is not a position worth holding.
-ARG PB_VERSION=0.41.1
+ARG PB_VERSION=0.42.1
 ARG TARGETARCH
 RUN apk add --no-cache unzip wget ca-certificates
 WORKDIR /pb
@@ -56,9 +56,9 @@ WORKDIR /pb
 # on github.com/pocketbase/pocketbase/releases.
 RUN set -eux; \
     case "${TARGETARCH}" in \
-        amd64) PB_ARCH=amd64; PB_SHA256=7504ec99a85fe405fc9941b4d94bdea20733b53707c8251b66fd0daa1444347e ;; \
-        arm64) PB_ARCH=arm64; PB_SHA256=341a249f97f4ff1ba8dfff81d357eb281cd346fbddae8b6ea43193f0647e036d ;; \
-        arm)   PB_ARCH=armv7; PB_SHA256=c04fd7d05323efdb0c7a55e46e4aa0e8f69203b10604d17e350b30c6e5528ec9 ;; \
+        amd64) PB_ARCH=amd64; PB_SHA256=4c3334a2b43b785c1186dc9a761160a1e1f8ddad4e80660adc8febbd55a41d25 ;; \
+        arm64) PB_ARCH=arm64; PB_SHA256=09528502a571af64ba3892bf21c4869aebf724368fb6b9d51e82844b9779b7cd ;; \
+        arm)   PB_ARCH=armv7; PB_SHA256=02df39124d5511ba5c31042334f2c5d1ed672a247e344a6919622ddd5179021d ;; \
         *)     echo "unsupported arch: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
     wget -q "https://ganigeorgiev.com/meta/pocketbase/pocketbase/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_${PB_ARCH}.zip" -O /tmp/pb.zip; \
@@ -69,7 +69,7 @@ RUN set -eux; \
 
 # ── The base runtime ──────────────────────────────────────────────────────────
 FROM alpine:3.20
-ARG PB_VERSION=0.41.1
+ARG PB_VERSION=0.42.1
 # Readable from a running container and from `docker inspect`, so "which
 # PocketBase is this?" has an answer that does not require reading a Dockerfile.
 ENV ZUGVOGEL_PB_VERSION=${PB_VERSION}
