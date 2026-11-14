@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_core/zugvogel_core.dart';
 import 'package:zugvogel_data/zugvogel_data.dart';
 import 'package:zugvogel_ui/src/errors.dart';

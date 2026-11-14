@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/injection/strings.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 import 'package:zugvogel_ui/src/widgets/destructive_action_button.dart';

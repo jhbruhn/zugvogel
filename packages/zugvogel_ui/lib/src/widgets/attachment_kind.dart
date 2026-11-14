@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The video extensions a Zugvogel server accepts (`video/mp4`,
 /// `video/quicktime`, `video/webm`), plus the aliases those MIME types are

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Thin wrapper over [TextFormField] applying the app's input conventions
 /// (outlined, labelled, consistent spacing). Keeps form code declarative.

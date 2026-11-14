@@ -11,7 +11,7 @@ issue_tracker: https://github.com/jhbruhn/eiermann/issues
 
 environment:
   sdk: ^3.12.0
-  flutter: ^3.44.0
+  flutter: ^3.50.0
 
 # Part of the Zugvogel pub workspace (see ../../pubspec.yaml).
 resolution: workspace
@@ -29,6 +29,7 @@ dependencies:
   image: ^4.9.1
   image_picker: ^1.2.3
   intl: ^0.20.2
+  material_ui: ^1.11.0
   meta: ^1.16.0
   share_plus: ^13.2.0
   url_launcher: ^6.3.0
@@ -41,8 +42,6 @@ dependencies:
     path: ../zugvogel_pb_client
 
 dev_dependencies:
-  flutter_localizations:
-    sdk: flutter
   flutter_test:
     sdk: flutter
   mocktail: ^1.0.5

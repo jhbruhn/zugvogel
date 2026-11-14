@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_core/zugvogel_core.dart';
 import 'package:zugvogel_ui/src/errors.dart';
 import 'package:zugvogel_ui/src/injection/strings.dart';

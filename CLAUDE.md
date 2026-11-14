@@ -155,9 +155,11 @@ flutter analyze                                   # whole workspace from the roo
 (cd packages/zugvogel_ui && flutter test)
 ```
 
-Flutter 3.44.3 / Dart 3.12, in lockstep with both consuming apps. The pubspecs
-require `^3.44.0`, which is what stops a pin bump from dragging an app onto
-3.47 — see the section below for what 3.47 does.
+Flutter 3.50.0 / Dart 3.14, in lockstep with both consuming apps. The pubspecs
+require `^3.50.0`: Material comes from `package:material_ui` now, not from
+`package:flutter/material.dart`, and its types are a separate copy — so the
+apps and this repo have to be on the same side of that move. The section below
+records why 3.47 was skipped on the way here.
 
 ### Do not ship on Flutter 3.47.x
 

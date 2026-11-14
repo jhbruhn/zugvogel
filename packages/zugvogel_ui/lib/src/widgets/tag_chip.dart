@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 
 /// A small rounded tag chip for a short status or category badge. Defaults to

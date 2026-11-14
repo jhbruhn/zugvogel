@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 
 /// Name-first identity header for a detail screen: a dominant [title], an

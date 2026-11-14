@@ -1,5 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/injection/semantics.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 import 'package:zugvogel_ui/src/widgets/breakdown_bars.dart';

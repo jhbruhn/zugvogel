@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/injection/strings.dart';
 
 /// Asks the user to confirm throwing away unsaved form input. Resolves to

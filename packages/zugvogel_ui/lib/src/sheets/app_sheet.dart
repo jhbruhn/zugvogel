@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/layout/window_size.dart';
 
 /// Opens a modal bottom sheet with the app's standard configuration — scroll

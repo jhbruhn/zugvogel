@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 
 /// One entry in a popup menu: an icon, a label, and what it does.

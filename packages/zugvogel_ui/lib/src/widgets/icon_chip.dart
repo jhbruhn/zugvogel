@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 
 /// A small icon in a soft tonal square — the shared "section icon" language

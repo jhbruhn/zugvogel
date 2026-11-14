@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_ui/src/injection/strings.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
 import 'package:zugvogel_ui/src/widgets/attachment_kind.dart';

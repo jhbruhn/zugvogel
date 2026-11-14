@@ -4,10 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cached_network_image_platform_interface/'
     'cached_network_image_platform_interface.dart'
     show ImageRenderMethodForWeb;
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:material_ui/material_ui.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:zugvogel_core/zugvogel_core.dart';
 import 'package:zugvogel_pb_client/zugvogel_pb_client.dart';
@@ -89,12 +89,10 @@ class _ImageViewerScreenState extends ConsumerState<ImageViewerScreen> {
   void _goTo(int target) {
     final next = target.clamp(0, widget.imageUrls.length - 1);
     if (next == _index) return;
-    unawaited(
-      _controller.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOut,
-      ),
+    _controller.animateToPage(
+      next,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
     );
   }
 
@@ -337,7 +335,7 @@ class _ZoomableImageState extends ConsumerState<_ZoomableImage>
     _zoomAnimation = Matrix4Tween(begin: _transform.value, end: end).animate(
       CurvedAnimation(parent: _animation, curve: Curves.easeOut),
     );
-    unawaited(_animation.forward(from: 0));
+    _animation.forward(from: 0);
     setState(() => _zoomed = !_zoomed);
   }
 

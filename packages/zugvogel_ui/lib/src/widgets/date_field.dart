@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// A tappable, read-only date field rendered like the app's text inputs, with
 /// an optional clear action for nullable dates. Tapping it opens the caller's

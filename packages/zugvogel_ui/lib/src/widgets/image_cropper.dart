@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:crop_image/crop_image.dart';
 import 'package:flutter/foundation.dart' show compute;
-import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
+import 'package:material_ui/material_ui.dart';
 import 'package:zugvogel_core/zugvogel_core.dart';
 import 'package:zugvogel_ui/src/injection/strings.dart';
 import 'package:zugvogel_ui/src/theme/spacing.dart';
