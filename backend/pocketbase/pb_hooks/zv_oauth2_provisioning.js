@@ -27,7 +27,8 @@
 // that — and crucially does NOT build the record by hand, so PB still links the
 // external identity (_externalAuths / recordRef) correctly. It only injects the
 // app fields the collection requires through `e.createData`, the official
-// channel for seeding a new record.
+// channel for seeding a new record — and it REPLACES whatever createData the
+// client sent rather than merging into it (eiermann-bd8, see below).
 //
 // Role (hybrid model):
 //   - the FIRST user of the instance (no `users` record exists at all yet) gets
@@ -180,10 +181,18 @@ function provision(e, config) {
 
   // Seed the to-be-created record. Let PocketBase build + persist it (and link
   // the external identity) — we only add the fields it can't infer from OAuth2.
-  // createData may be undefined here, so assign a fresh object (merging anything
-  // the client already supplied). `verified` is NOT set here — it's a protected
-  // system field PocketBase rejects via createData — it's set after creation
-  // below instead.
+  // `verified` is NOT set here — it's a protected system field PocketBase
+  // rejects via createData — it's set after creation below instead.
+  //
+  // eiermann-bd8 — createData is REPLACED, never merged with what the client
+  // sent. The auth-with-oauth2 body carries a client-chosen `createData`, and
+  // PocketBase applies field modifiers to it: `role+`, `+role`, `role-`,
+  // `org+`. Overwriting the plain `role` key does not touch those, and
+  // Record.ReplaceModifiers applies them AFTER the plain key — so a merge let
+  // `{"role+": "coordinator"}` turn a stranger at the IdP into a coordinator
+  // (the users createRule admits the oauth2 context, and the app's create
+  // guard trusts this hook's decision). No client needs to send createData;
+  // every field of a provisioned account is the server's to choose.
   const data = { role: role, is_active: true };
   if (orgId) data.org = orgId;
   // Expose the email to fellow org members so the team roster shows it.
@@ -191,7 +200,7 @@ function provision(e, config) {
     data.email = email;
     data.emailVisibility = true;
   }
-  e.createData = Object.assign({}, e.createData, data);
+  e.createData = data;
 
   e.app
     .logger()

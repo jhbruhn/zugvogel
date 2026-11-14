@@ -331,3 +331,64 @@ test("no authenticated caller leaves the field to the collection's rules", () =>
   });
   assert.equal(record.read("author"), "u2");
 });
+
+// ── zv_oauth2_provisioning: client createData never reaches the record ──────
+
+const oauth2 = hook("zv_oauth2_provisioning.js");
+
+/** A new-record OAuth2 event carrying [createData] as the client sent it. */
+function oauth2Event(createData) {
+  // The `app` here only answers the two lookups provision() makes before
+  // e.next(): "does any user exist" (yes — not the bootstrap case) and the
+  // seeded org. What is asserted is the object provision() hands PocketBase,
+  // which is this function's own output, not a property of the stub.
+  return {
+    isNewRecord: true,
+    createData: createData,
+    oAuth2User: { email: "new@example.org", rawUser: {} },
+    app: {
+      findFirstRecordByFilter: () => ({ id: "u-existing" }),
+      findRecordById: (collection, id) => ({ id: id }),
+      logger: () => ({ info: () => {}, warn: () => {} }),
+    },
+    record: null,
+    next: () => {},
+  };
+}
+
+const oauth2Config = {
+  envPrefix: "TEST",
+  defaultOrgId: "org-seeded",
+  roles: { walledOff: "guest", bootstrap: "coordinator", groupMap: [] },
+};
+
+test("provision REPLACES the client's createData instead of merging it", () => {
+  // eiermann-bd8. A merge overwrote the plain `role` key but kept PocketBase's
+  // field modifiers, which it applies after the plain key: `role+` made every
+  // newcomer a coordinator. Every key the client chose must be gone.
+  const hostile = {
+    role: "coordinator",
+    "role+": "coordinator",
+    "+role": "coordinator",
+    "role-": "guest",
+    "org+": "org-other",
+    is_active: false,
+    name: "chosen by the client",
+  };
+  const e = oauth2Event(hostile);
+  oauth2.provision(e, oauth2Config);
+  assert.deepEqual(e.createData, {
+    role: "guest",
+    is_active: true,
+    org: "org-seeded",
+    email: "new@example.org",
+    emailVisibility: true,
+  });
+});
+
+test("provision seeds the same record when the client sends no createData", () => {
+  const e = oauth2Event(undefined);
+  oauth2.provision(e, oauth2Config);
+  assert.equal(e.createData.role, "guest");
+  assert.equal(e.createData.org, "org-seeded");
+});
