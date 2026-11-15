@@ -419,5 +419,5 @@ abstract class PbRepository<T> extends PbReadOnlyRepository<T>
 
   @override
   Future<void> delete(String id) =>
-      guard(() async => service.delete(id), write: true);
+      guard(() async => await service.delete(id), write: true);
 }

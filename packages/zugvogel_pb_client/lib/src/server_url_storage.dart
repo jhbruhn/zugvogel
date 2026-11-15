@@ -16,10 +16,10 @@ class ServerUrlStorage {
       (await SharedPreferences.getInstance()).getString(key);
 
   Future<void> write(String url) async =>
-      (await SharedPreferences.getInstance()).setString(key, url);
+      await (await SharedPreferences.getInstance()).setString(key, url);
 
   Future<void> delete() async =>
-      (await SharedPreferences.getInstance()).remove(key);
+      await (await SharedPreferences.getInstance()).remove(key);
 }
 
 final serverUrlStorageProvider = Provider<ServerUrlStorage>(

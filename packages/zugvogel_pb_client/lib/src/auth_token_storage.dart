@@ -72,11 +72,11 @@ class PrefsAuthTokenStorage implements AuthTokenStorage {
 
   @override
   Future<void> write(String data) async =>
-      (await SharedPreferences.getInstance()).setString(key, data);
+      await (await SharedPreferences.getInstance()).setString(key, data);
 
   @override
   Future<void> delete() async =>
-      (await SharedPreferences.getInstance()).remove(key);
+      await (await SharedPreferences.getInstance()).remove(key);
 }
 
 /// Selects the right [AuthTokenStorage] for the current platform.

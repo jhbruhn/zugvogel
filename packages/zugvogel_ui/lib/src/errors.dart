@@ -20,7 +20,6 @@ import 'package:zugvogel_ui/src/injection/strings.dart';
 // carries the lookup, so `errorMessage` finds it without every call site
 // passing a resolver. A function type cannot be implemented by the class that
 // already holds the ARB.
-// ignore: one_member_abstracts
 abstract interface class ServerCodeStrings {
   /// The sentence for [code], or null when this app does not know it.
   ///

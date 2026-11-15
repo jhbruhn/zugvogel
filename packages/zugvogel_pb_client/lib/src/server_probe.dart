@@ -118,9 +118,9 @@ class ServerProbe {
 
   Future<Object?> _probeInfo(String baseUrl) async {
     final fake = prober;
-    if (fake != null) return fake(baseUrl);
+    if (fake != null) return await fake(baseUrl);
     final ua = await loadUserAgent(config.userAgentName);
-    return PocketBase(
+    return await PocketBase(
       baseUrl,
       httpClientFactory: () => UserAgentClient(ua),
     ).send(config.infoPath).timeout(config.probeTimeout);

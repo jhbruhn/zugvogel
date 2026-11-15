@@ -68,7 +68,7 @@ class _ProtectedFileService extends HttpFileService {
     final withToken = base.replace(
       queryParameters: {...base.queryParameters, 'token': token},
     );
-    return super.get(withToken.toString(), headers: headers);
+    return await super.get(withToken.toString(), headers: headers);
   }
 }
 
